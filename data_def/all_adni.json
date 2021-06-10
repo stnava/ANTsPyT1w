@@ -1,8 +1,0 @@
-{
-    "version": 1,
-    "bucket": "invicro-data-shared",
-    "prefix": "ADNI/",
-    "filter_include": ["nii.gz"],
-    "filter_exclude": [],
-    "dryrun": false
-}
