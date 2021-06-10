@@ -1,12 +1,12 @@
 
 from setuptools import setup
 
-setup(name='superiq',
+setup(name='antspyt1w',
       version='0.0.0',
-      description='Super-resolution image quantification',
-      url='https://github.com/stnava/superiq',
-      author='Avants and Gosselin',
+      description='T1w human neuroimage processing with antspyx',
+      url='https://github.com/stnava/ANTsPyT1w',
+      author='Avants, Gosselin, Tustison',
       author_email='stnava@gmail.com',
       license='Apache 2.0',
-      packages=['superiq'],
+      packages=['antspyt1w'],
       zip_safe=False)
