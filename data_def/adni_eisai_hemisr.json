@@ -1,0 +1,8 @@
+{
+    "version": 1,
+    "bucket": "eisai-basalforebrainsuperres2",
+    "prefix": "ADNI_EISAI_COHORT/hemi_sr/ADNI/",
+    "filter_include": ["-SR.nii.gz"],
+    "filter_exclude": [],
+    "dryrun": false
+}

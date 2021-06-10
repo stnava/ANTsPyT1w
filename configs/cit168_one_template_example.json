@@ -1,0 +1,39 @@
+{
+    "version": 1,
+    "aws_profile": "ec2-test",
+    "job_definition" : "superiq_basalforebrain",
+    "job_queue" : "superiq_basalforebrain_dev",
+    "skip_repeats": false,
+    "parameters": {
+        "process_name": "cit_parcellation",
+        "input_bucket" : "eisai-basalforebrainsuperres2",
+        "input_value" : "ADNI_dev/002_S_4473/20140227/T1w/000/ADNI-002_S_4473-20140227-T1w-000.nii.gz",
+        "pipeline_bucket": "eisai-basalforebrainsuperres2",
+        "pipeline_prefix": "superres-pipeline-dev/",
+        "template_bucket": "invicro-pipeline-inputs",
+        "template_key": "CIT168_Reinf_Learn_v1/CIT168_T1w_700um.nii.gz",
+        "template_label_key" : "CIT168_Reinf_Learn_v1/det_atlas_25.nii.gz",
+        "model_bucket": "invicro-pipeline-inputs", 
+        "model_key": "models/SEGSR_32_ANINN222_3.h5",
+        "seg_params": { 
+            "wlab": {
+                "range": true,
+                "values": [1,16]
+            },
+            "template_repeats": 8,
+            "submask_dilation": 6,
+            "reg_iterations": [100,100,20,0],
+            "searcher": 1,
+            "radder": 2,
+            "verbose": true
+        },
+        "sr_params":{
+            "upFactor": [2,2,2],
+            "dilation_amount": 6,
+            "verbose": true
+        },
+        "output_bucket" : "eisai-basalforebrainsuperres2",
+        "output_prefix": "superres-pipeline-dev/",
+        "output_suffix": ""
+    }
+}

@@ -1,0 +1,29 @@
+{
+    "version": 1,
+    "aws_profile": "role",
+    "job_definition" : "superiq_hemisr",
+    "job_queue" : "superiq",
+    "skip_repeats": false,
+    "parameters": {
+        "environment" : "prod",
+        "process_name": "hemi_sr",
+        "input_bucket" : "eisai-basalforebrainsuperres2",
+        "input_value" : "ADNI_APRIL2021/brain_extraction/ADNI/002_S_0729/20060717/T1w/000/brainextraction/ADNI-002_S_0729-20060717-T1w-000-brainextraction-n4brain.nii.gz",
+        "batch_id": "",
+        "do_reg": true,
+        "model_bucket": "invicro-pipeline-inputs",
+        "model_key": "models/SEGSR_32_ANINN222_bigTV3.h5",
+        "template_bucket": "invicro-pipeline-inputs",
+        "template_base" : "CIT168_adni/CIT168_T1w_700um_pad_adni0.nii.gz",
+        "templateCIT": "CIT168_adni/det_atlas_25_pad_LR_adni.nii.gz",
+        "templateHemi": "CIT168_adni/CIT168_T1w_700um_pad_HemisphereLabel_adni.nii.gz",
+        "templateBF1L": "CIT168_adni/CIT168_basal_forebrain_adni_prob_1_left.nii.gz",
+        "templateBF2L": "CIT168_adni/CIT168_basal_forebrain_adni_prob_2_left.nii.gz",
+        "templateBF1R": "CIT168_adni/CIT168_basal_forebrain_adni_prob_1_right.nii.gz",
+        "templateBF2R": "CIT168_adni/CIT168_basal_forebrain_adni_prob_2_right.nii.gz",
+        "output_file_prefix": "outputs/",
+        "output_bucket" : "eisai-basalforebrainsuperres2",
+        "output_prefix": "SEGSR_32_ANINN222_bigTV3_MODEL/hemi_sr/",
+        "output_suffix": "cerebrum.nii.gz"
+    }
+}

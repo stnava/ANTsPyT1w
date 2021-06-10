@@ -1,0 +1,31 @@
+{
+    "version": 1,
+    "aws_profile": "role",
+    "job_definition" : "superiq_deep_dkt",
+    "job_queue" : "superiq_deep_dkt",
+    "skip_repeats": true,
+    "parameters": {
+        "environment" : "val",
+        "process_name": "deep_dkt",
+        "input_bucket" : "invicro-pipeline-inputs",
+        "input_value" : "OASIS-TRT-20/OASIS-TRT-20-BATCHREADY/Brains/OASIS-TRT-20-1/OASIS-TRT-20-1_t1brain.nii.gz",
+        "label_bucket": "invicro-pipeline-inputs",
+        "label_prefix": "OASIS-TRT-20/OASIS-TRT-20-BATCHREADY/Segmentations/",
+        "model_bucket": "invicro-pipeline-inputs",
+        "model_key": "models/SEGSR_32_ANINN222_3.h5",
+        "wlab": [1006, 1007, 1015, 1016],
+        "sr_params":{
+            "upFactor": [2,2,2],
+            "dilation_amount": 6,
+            "verbose": true
+        },
+
+        "label_one_labelset": [17,53],
+        "label_two_labelset": [1006,2006],
+        "label_three_labelset": [1016,2016],
+        "output_path": "tmp/",
+        "output_bucket" : "eisai-basalforebrainsuperres2",
+        "output_prefix": "superres-pipeline-validation/deep_dkt/",
+        "output_suffix": ""
+    }
+}

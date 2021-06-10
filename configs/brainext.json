@@ -1,0 +1,19 @@
+{
+    "version": 1,
+    "aws_profile": "role",
+    "job_definition" : "superiq_bxt",
+    "job_queue" : "superiq",
+    "skip_repeats": true,
+    "parameters": {
+        "environment" : "prod",
+        "version": "V0",
+        "batch_id": "",
+        "process_name": "brainextraction",
+        "input_bucket" : "eisai-basalforebrainsuperres2",
+        "input_value" : "",
+        "output_folder": "outputs",
+        "output_bucket" : "eisai-basalforebrainsuperres2",
+        "output_prefix": "ADNI_EISAI_PROD/",
+        "output_suffix": "n4brain.nii.gz"
+    }
+}

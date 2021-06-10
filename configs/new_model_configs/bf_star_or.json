@@ -1,0 +1,33 @@
+{
+    "version": 1,
+    "aws_profile": "role",
+    "job_definition" : "superiq_bfstar",
+    "job_queue" : "superiq",
+    "skip_repeats": false,
+    "parameters": {
+        "environment" : "prod",
+        "version": "V2",
+        "process_name": "bf_star_on_or",
+        "input_bucket" : "eisai-basalforebrainsuperres2",
+        "input_value" : "",
+        "ants_random_seed": "1",
+        "itk_threads": "1",
+        "hemi_bucket": "eisai-basalforebrainsuperres2",
+        "hemi_prefix": "SEGSR_32_ANINN222_bigTV3_MODEL/hemi_sr/",
+       	"template_bucket": "invicro-pipeline-inputs",
+        "template_base" : "CIT168_adni/CIT168_T1w_700um_pad_adni0.nii.gz",
+        "templateCIT": "CIT168_adni/det_atlas_25_pad_LR_adni.nii.gz",
+        "templateHemi": "CIT168_adni/CIT168_T1w_700um_pad_HemisphereLabel_adni.nii.gz",
+        "templateBF1L": "CIT168_adni/CIT168_basal_forebrain_adni_prob_1_left.nii.gz",
+        "templateBF2L": "CIT168_adni/CIT168_basal_forebrain_adni_prob_2_left.nii.gz",
+        "templateBF1R": "CIT168_adni/CIT168_basal_forebrain_adni_prob_1_right.nii.gz",
+        "templateBF2R": "CIT168_adni/CIT168_basal_forebrain_adni_prob_2_right.nii.gz",
+        "resolution" : "OR",
+        "model_bucket":"invicro-pipeline-inputs",
+        "model_prefix": "models/SEGSR_32_ANINN222_bigTV3.h5",
+        "output_file_prefix": "outputs/",
+        "output_bucket" : "eisai-basalforebrainsuperres2",
+        "output_prefix": "reproducibility_test/bf_star_on_or/",
+        "output_suffix": ""
+    }
+}

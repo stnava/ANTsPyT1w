@@ -1,0 +1,8 @@
+{
+    "version": 1,
+    "bucket": "mjff-ppmi",
+    "prefix": "t1_brain_images_ppmi/PPMI/3000",
+    "filter_include": ["nii.gz"],
+    "filter_exclude": [],
+    "dryrun": false
+}

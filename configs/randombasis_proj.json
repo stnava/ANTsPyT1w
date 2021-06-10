@@ -1,0 +1,23 @@
+{
+    "version": 1,
+    "aws_profile": "role",
+    "job_definition" : "superiq_rbp",
+    "job_queue" : "superiq",
+    "skip_repeats": false,
+    "parameters": {
+        "environment" : "prod",
+        "process_name": "rbp",
+        "version": "V0",
+        "resolution": "OR",
+        "batch_id": "",
+        "input_bucket" : "eisai-basalforebrainsuperres2",
+        "input_value" : "brain_extraction/PPMI/3000/20110201/MRI_T1/I224562/brainextraction/PPMI-3000-20110201-MRI_T1-I224562-brainextraction-n4brain.nii.gz",
+        "template_bucket": "invicro-pipeline-inputs",
+        "template_key": "adni_templates/adni_template.nii.gz",
+        "nvox": [128, 128, 128],
+        "nbasis": 20,
+        "registration_transform": "Rigid",
+        "rha_bucket" : "invicro-pipeline-inputs",
+        "rha_key" : "random_orthogonal_basis.mha"
+    }
+}

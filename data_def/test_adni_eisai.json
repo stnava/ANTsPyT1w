@@ -1,0 +1,8 @@
+{
+    "version": 1,
+    "bucket": "eisai-basalforebrainsuperres2",
+    "prefix": "ADNI_EISAI_COHORT/initial_images/ADNI/002_S_0729/",
+    "filter_include": ["nii.gz"],
+    "filter_exclude": [],
+    "dryrun": false
+}
