@@ -13,7 +13,8 @@ def deep_hippo(
     avgleft = img * 0
     avgright = img * 0
     for k in range(number_of_tries):
-        rig = ants.registration( template, img, "AffineFast", random_seed=k )
+        rig = ants.registration( template, img,
+            "antsRegistrationSyNQuickRepro[a]", random_seed=k )
         rigi = rig['warpedmovout']
         hipp = antspynet.hippmapp3r_segmentation( rigi, do_preprocessing=False )
         hippr = ants.apply_transforms(
