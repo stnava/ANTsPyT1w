@@ -28,6 +28,7 @@ def get_data(name=None):
             - 'T_template0'
             - 'T_template0_LR'
             - 'T_template0_LobesBstem'
+            - 'T_template0_WMP'
             - 'T_template0_Symmetric'
             - 'T_template0_SymmetricLR'
             - 'PPMI-3803-20120814-MRI_T1-I340756'

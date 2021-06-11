@@ -1,85 +1,62 @@
+import ants
+import antspynet
+import tensorflow as tf
+import numpy as np
+import os
+import math
 
-def lesionFeatures(  inimgO, wmpriorIn, wmpriorskelIn):
-  inimg = n4BiasFieldCorrection( inimgO,inimgO*0+1)
-  inimg = rankIntensity( inimg )
-  inimg = denoiseImage( inimg )
-  imgreg = antsRegistration( bbt, inimg, 'AffineFast' )
-  daB = deepAtropos( imgreg['warpedmovout'], doPreprocessing = FALSE )
-  wmprob = antsApplyTransforms(  inimg, daB['probabilityImages'][3], imgreg['fwdtransforms'], whichtoinvert=TRUE )
-  reg = antsRegistration( inimg, template, 'SyN')
-  wmskel = antsApplyTransforms( inimg, wmpriorskelIn, reg['fwdtransforms'], interpolator='nearestNeighbor')
-  wmprior = antsApplyTransforms( inimg, wmpriorIn, reg['fwdtransforms'], interpolator='nearestNeighbor')
-  wmwarped = antsApplyTransforms( wmpriorIn, wmprob, reg['invtransforms'], interpolator='linear')
+def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
+    """
+    generate input features supporting t1-based hypointensity algorithms
 
-  realWM = thresholdImage( wmprior , 0.9, Inf )
+    input_image: input image; bias-corrected, brain-extracted and (potentially)
+    registered to a template (uncertain if this is needed as yet)
 
-  parcellateWMdnz = kmeansSegmentation( inimg, 2, realWM, verbose=T, mrf=0.3 )['probabilityimages'][0]
+    wmpriorIn: template-based tissue prior
 
-  return {
-    "wmprior":wmprior,
-    "wmproborig":wmprob,
-    "denoised":inimg,
-    "kmeanswmorig":parcellateWMdnz,
-    "aff":reg[fwdtransforms][1] }
-
-template = ants.image_read( "~/data/white_matter_hypointensity/T_template0_BrainCerebellum.nii.gz")
-wmprior = ants.image_read( "~/data/white_matter_hypointensity/antsBrainSegmentationPosteriors3.nii.gz")
-wmpriorskel = skeletonize( thresholdImage( wmprior, 0.4, Inf ) )
-
-bbt = ants.image_read( getANTsXNetData( "biobank" ) )
-bbt = brainExtraction( bbt, "t1" ) * bbt
-bbt = rankIntensity( bbt )
-
-img1 = ants.image_read("~/data/white_matter_hypointensity/PPMI-3803-20120814-MRI_T1-I340756.nii.gz" )
-img2 = ants.image_read("~/data/white_matter_hypointensity/PPMI_3118_MR_MPRAGE_GRAPPA2_br_raw_20160427125628761_82_S405061_I665282.nii")
-ct=1
-
-oimg = antsImageClone( imgx )
-img = reflectImage( imgx, axis=0 )
-print(img)
-bxt = antspynet.brainExtraction( img, 't1combined[5]' ).thresholdImage(2,3)
-img = img * bxt
-
-####################################################
-slf = lesionFeatures( img, wmprior, wmpriorskel )
-
-def execcer( x ):
-    mybig = round(c(88*2,256,256)/2)
-    templatesmall = resampleImage( template, mybig, useVoxels=TRUE )
+    """
+    mybig = [88,128,128]
+    templatesmall = ants.resample_image( template, mybig, use_voxels=True )
+    qaff = ants.registration( x, templatesmall, 'SyN', aff_metric='GC', random_seed=1 )
+    afftx = qaff['fwdtransforms'][1]
+    templateWMPrior2x = ants.apply_transforms( x, templateWMPrior, qaff['fwdtransforms'] )
+    realWM = ants.threshold_image( templateWMPrior2x , 0.9, math.inf )
+    inimg = ants.rank_intensity( x )
+    parcellateWMdnz = ants.kmeans_segmentation( inimg, 2, realWM, mrf=0.3 )['probabilityimages'][0]
+    x2template = ants.apply_transforms( templatesmall, x, afftx, whichtoinvert=[True] )
+    parcellateWMdnz2template = ants.apply_transforms( templatesmall, parcellateWMdnz, afftx, whichtoinvert=[True] )
     # features = rank+dnz-image, lprob, wprob, wprior at mybig resolution
-    f1=as.array( antsApplyTransforms( templatesmall, slf['denoised'], slf['aff'], whichtoinvert=c(TRUE) ) )
-    f2 = as.array( antsApplyTransforms( templatesmall, slf['kmeanswmorig'] , slf['aff'], whichtoinvert=c(TRUE) ) )
-    f3 = as.array( antsApplyTransforms( templatesmall, slf['wmprob'] , slf['aff'], whichtoinvert=c(TRUE) ) )
-    f4 = as.array( antsApplyTransforms( templatesmall, slf['wmprior'] , slf['aff'], whichtoinvert=c(TRUE) ) )
-    farr = abind::abind( f1,f2,f3,f4,along=4)
-    mdl =  createUnetModel3D( list(NULL,NULL,NULL,4),
-      numberOfOutputs = 1,
-      numberOfLayers = 4,
-      mode = 'sigmoid' )
-    load_model_weights_hdf5( mdl, "unet.h5" )
+    f1 = x2template.numpy()
+    f2 = parcellateWMdnz2template.numpy()
+    f3 = ants.apply_transforms( templatesmall, xWMProbability, afftx, whichtoinvert=[True] ).numpy()
+    f4 = ants.apply_transforms( templatesmall, templateWMPrior, qaff['fwdtransforms'][0] ).numpy()
+    myfeatures = np.stack( (f1,f2,f3,f4), axis=3 )
+    newshape = np.concatenate( [ [1],np.asarray( myfeatures.shape )] )
+    myfeatures = myfeatures.reshape( newshape )
 
+    inshape = [None,None,None,4]
+    wmhunet = antspynet.create_unet_model_3d( inshape,
+        number_of_outputs = 1,
+        number_of_layers = 4,
+        mode = 'sigmoid' )
 
-    pp = predict( mdl, array( farr, dim=c(1,dim(farr))))
-    refimg = slf$denoised %>% resampleImage( mybig, useVoxels=TRUE )
-    myles = as.antsImage( pp[1,,,,1] ) %>%
-      antsCopyImageInfo2( templatesmall )
-    lesresam = antsApplyTransforms( slf$denoised, myles, slf['aff'], whichtoinvert=c(FALSE) )
+    wmhunet.load_weights( antspyt1w.get_data("simwmhseg") )
 
-    pdf( paste0( "wmh_example_",ct,".pdf" ), width=12, height=8 )
-    layout(matrix(1:2,nrow=2))
-    plot(slf$denoised,nslices=14,ncol=7,axis=3)
-    plot(slf$denoised,lesresam,nslices=14,ncol=7,axis=3)
-    dev.off()
+    pp = wmhunet.predict( myfeatures )
 
-    # two pieces of evidence regarding whether there is a lesion or not
-    print("Max lesion prob:")
-    print(range(myles)) # this is important evidence of lesion presence
-    nchan=4
-    rnmdl =  createResNetModel3D( list(NULL,NULL,NULL,nchan),
-      numberOfClassificationLabels = 1,
-      layers = 1:3,
-      residualBlockSchedule = c(3,4,6,3), squeezeAndExcite = TRUE,
+    limg = ants.from_numpy( tf.squeeze( pp[0] ).numpy( ) )
+    limg = ants.copy_image_info( templatesmall, limg )
+    lesresam = ants.apply_transforms( x, limg, afftx, whichtoinvert=[False] )
+
+    rnmdl = antspynet.create_resnet_model_3d( inshape,
+      number_of_classification_labels = 1,
+      layers = (1,2,3),
+      residual_block_schedule = (3,4,6,3), squeezeAndExcite = True,
       lowestResolution = 32, cardinality = 1, mode = "regression" )
-    load_model_weights_hdf5( rnmdl, 'discriminator.h5')
-    print("ResNetWMH-classifier: <0 = unlikely to have WMH lesion")
-    print( predict( rnmdl, array( farr, dim=c(1,dim(farr)))) )
+    rnmdl.load_weights( antspyt1w.get_data("simwmhdisc") )
+    qq = rnmdl.predict( myfeatures )
+
+    return {
+        "wmh_probability_image":lesresam,
+        "wmh_probability_of_existence":qq,
+        "features":myfeatures }

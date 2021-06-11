@@ -26,7 +26,7 @@ python setup.py install
 
 * hypothalamus segmentation **FIXME**
 
-* deformable registration with recommended parameters (after above processing) **FIXME**
+* deformable registration with recommended parameters (after above processing)
 
 
 ```python
@@ -42,6 +42,7 @@ import ants
 ##### get example data + reference templates
 fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756')
 tfn = antspyt1w.get_data('T_template0')
+tfnw = antspyt1w.get_data('T_template0_WMP')
 tlrfn = antspyt1w.get_data('T_template0_LR')
 bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 
@@ -51,12 +52,12 @@ bxtmethod = 't1combined[5]' # better for individual subjects
 templatea = ants.image_read( tfn )
 templatea = ( templatea * antspynet.brain_extraction( templatea, 't1' ) ).iMath( "Normalize" )
 templatealr = ants.image_read( tlrfn )
+templateawmprior = ants.image_read( tfnw )
 templateb = ants.image_read( bfn )
 templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
 img = ants.image_read( fn )
 imgbxt = antspynet.brain_extraction( img, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent")
 img = img * imgbxt
-mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
 
 # optional - quick look at result
 # ants.plot(img,axis=2,ncol=8,nslices=24, filename="/tmp/temp.png" )
@@ -67,15 +68,22 @@ img = ants.denoise_image( img, imgbxt, noise_model='Rician')
 img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
 ##### hierarchical labeling
+mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
 
+myhypo = antspyt1w.t1_hypointensity( img,
+  myparc['tissue_probabilities'][3], # wm posteriors
+  templatea,
+  templateawmprior )
+
+derk
+
 ##### a relatively computationally costly registration as a catch-all complement
-# NOTE: myparc['hemisphere_labels'] may not be as good as
-# mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
+# NOTE: myparc['hemisphere_labels'] may not be as good as mylr
 reg = antspyt1w.hemi_reg(
     input_image = img,
     input_image_tissue_segmentation = myparc['tissue_segmentation'],
-    input_image_hemisphere_segmentation = myparc['hemisphere_labels'],
+    input_image_hemisphere_segmentation = mylr, # myparc['hemisphere_labels'],
     input_template = templatea,
     input_template_hemisphere_labels = templatealr,
     output_prefix="/tmp/SYN",
