@@ -56,6 +56,8 @@ templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath(
 img = ants.image_read( fn )
 imgbxt = antspynet.brain_extraction( img, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent")
 img = img * imgbxt
+mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
+
 # optional - quick look at result
 # ants.plot(img,axis=2,ncol=8,nslices=24, filename="/tmp/temp.png" )
 
@@ -69,7 +71,7 @@ myparc = antspyt1w.deep_brain_parcellation( img, templateb )
 
 ##### a relatively computationally costly registration as a catch-all complement
 # NOTE: myparc['hemisphere_labels'] may not be as good as
-# seg_hemi( img, templatea, templatealr )
+# mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
 reg = antspyt1w.hemi_reg(
     input_image = img,
     input_image_tissue_segmentation = myparc['tissue_segmentation'],

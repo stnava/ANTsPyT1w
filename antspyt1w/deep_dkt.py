@@ -5,7 +5,7 @@ import numpy as np
 import os
 import math
 
-def label_hemispheres( img, template, templateLR ):
+def label_hemispheres( x, template, templateLR ):
     """
     quick somewhat noisy registration solution to hemisphere labeling. typically
     we label left as 1 and right as 2.
