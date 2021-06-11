@@ -76,8 +76,6 @@ myhypo = antspyt1w.t1_hypointensity( img,
   templatea,
   templateawmprior )
 
-derk
-
 ##### traditional deformable registration as a high-resolution complement to above
 # NOTE: myparc['hemisphere_labels'] may not be as good as mylr
 reg = antspyt1w.hemi_reg(
@@ -87,12 +85,10 @@ reg = antspyt1w.hemi_reg(
     input_template = templatea,
     input_template_hemisphere_labels = templatealr,
     output_prefix="/tmp/SYN",
-    is_test=True)
+    is_test=True) # set to False for a real run
 
 ##### specialized labeling
 hippLR = antspyt1w.deep_hippo( img, templateb )
-# FIXME hypothalamus
-# FIXME wmh
 
 
 

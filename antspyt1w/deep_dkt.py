@@ -24,7 +24,8 @@ def label_hemispheres( x, template, templateLR ):
 def deep_tissue_segmentation( x, template=None, registration_map=None ):
     """
     modified slightly more efficient deep atropos that also handles the
-    extra CSF issue.  returns segmentation and probability images.
+    extra CSF issue.  returns segmentation and probability images. see
+    the tissues csv available from get_data.
 
     x: input image
 
@@ -84,7 +85,8 @@ def deep_brain_parcellation(
     """
     modified slightly more efficient deep dkt that also returns atropos output
     thus providing a complete hierarchical parcellation of t1w.  we run atropos
-    here so we dont need to redo registration separately.
+    here so we dont need to redo registration separately. see
+    the lobes and dkt csv available from get_data.
 
     target_image: input image
 

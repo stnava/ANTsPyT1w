@@ -33,15 +33,15 @@ def deep_hippo(
     hippright_bin = ants.threshold_image( avgright, 0.5, 2.0 ).iMath("GetLargestComponent")
     hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent")
 
-    hippleftORlabels  = ants.label_geometry_measures(hippleft, avgleft)
-    hipprightORlabels  = ants.label_geometry_measures(hippright, avgright)
+    hippleftORlabels  = ants.label_geometry_measures(hippleft_bin, avgleft)
+    hipprightORlabels  = ants.label_geometry_measures(hippright_bin, avgright)
 
     labels = {
         'HLProb':avgleft,
-        'HLBin':avgleft_bin,
+        'HLBin':hippleft_bin,
         'HLStats': hippleftORlabels,
         'HRProb':avgright,
-        'HRBin':avgright_bin,
+        'HRBin':hippright_bin,
         'HRStats': hipprightORlabels,
     }
     return labels

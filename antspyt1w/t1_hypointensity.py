@@ -65,5 +65,5 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
 
     return {
         "wmh_probability_image":lesresam,
-        "wmh_probability_of_existence":qq,
+        "wmh_probability_of_existence":float(qq),
         "features":myfeatures }

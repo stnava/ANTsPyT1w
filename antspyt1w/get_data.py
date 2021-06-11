@@ -10,7 +10,7 @@ import tensorflow as tf
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data(name=None):
+def get_data(name=None,force_download=False,version=6):
     """
     Get ANTsPyT1w data filename
 
@@ -25,6 +25,8 @@ def get_data(name=None):
         Options:
             - 'all'
             - 'dkt'
+            - 'lobes'
+            - 'tissues'
             - 'T_template0'
             - 'T_template0_LR'
             - 'T_template0_LobesBstem'
@@ -34,6 +36,10 @@ def get_data(name=None):
             - 'PPMI-3803-20120814-MRI_T1-I340756'
             - 'simwmseg'
             - 'simwmdisc'
+
+    force_download: boolean
+
+    version: version of data to download (integer)
 
     Returns
     -------
@@ -53,8 +59,8 @@ def get_data(name=None):
             fname = os.path.join(DATA_PATH, fname)
             files.append(fname)
 
-    if len( files ) == 0:
-        url = "https://ndownloader.figshare.com/articles/14766102/versions/4"
+    if len( files ) == 0 | force_download :
+        url = "https://ndownloader.figshare.com/articles/14766102/versions/" + str(version)
         target_file_name = "14766102.zip"
         target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
             cache_subdir=DATA_PATH, extract = True )
