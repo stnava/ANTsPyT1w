@@ -166,9 +166,9 @@ def deep_brain_parcellation(
 
     wmseg = ants.threshold_image( mydap['segmentation_image'], 3, 3 )
     wmMean = target_image[ wmseg == 1 ].mean()
-    wmStd = target_image[ wmsegSR == 1 ].std()
+    wmStd = target_image[ wmseg == 1 ].std()
     csfseg = ants.threshold_image( mydap['segmentation_image'], 1, 1 )
-    csfStd = target_image[ csfsegSR == 1 ].std()
+    csfStd = target_image[ csfseg == 1 ].std()
     wmSNR = wmMean/wmStd
     wmcsfSNR = wmMean/csfStd
 
