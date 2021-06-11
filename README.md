@@ -28,6 +28,7 @@ python setup.py install
 
 * deformable registration with recommended parameters (after above processing)
 
+# example processing
 
 ```python
 import os
@@ -89,26 +90,28 @@ tissue = antspyt1w.map_segmentation_to_dataframe( "tissues", myparc['tissue_segm
 dktl = antspyt1w.map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
 dktp = antspyt1w.map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
 
-##### below here are more exploratory nice to have outputs
-myhypo = antspyt1w.t1_hypointensity( img,
-  myparc['tissue_probabilities'][3], # wm posteriors
-  templatea,
-  templateawmprior )
-
-##### traditional deformable registration as a high-resolution complement to above
-# NOTE: myparc['hemisphere_labels'] may not be as good as mylr
+##### traditional deformable registration as a high-resolution output that
+# will allow us to "fill out" any regions we may want in the future and also
+# do data-driven studies
 reg = antspyt1w.hemi_reg(
     input_image = img,
     input_image_tissue_segmentation = myparc['tissue_segmentation'],
-    input_image_hemisphere_segmentation = mylr, # myparc['hemisphere_labels'],
+    input_image_hemisphere_segmentation = mylr,
     input_template = templatea,
     input_template_hemisphere_labels = templatealr,
     output_prefix="/tmp/SYN",
     is_test=True) # set to False for a real run
 
+##### Exploratory: nice to have - t1-based white matter hypointensity estimates
+myhypo = antspyt1w.t1_hypointensity( img,
+  myparc['tissue_probabilities'][3], # wm posteriors
+  templatea,
+  templateawmprior )
+
+
 ##### specialized labeling
 hippLR = antspyt1w.deep_hippo( img, templateb )
 
-
-
 ```
+
+## big FIXME: high-level regression test on the outputs above ...
