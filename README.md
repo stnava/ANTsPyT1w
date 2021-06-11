@@ -71,7 +71,8 @@ img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
 
-##### accumulate data into data frames
+##### organize summary data into data frames - user should pivot these to columns
+# and attach to unique IDs when accumulating for large-scale studies
 hemi = antspyt1w.map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
 tissue = antspyt1w.map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
 dktl = antspyt1w.map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
