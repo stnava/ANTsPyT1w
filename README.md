@@ -65,7 +65,8 @@ img = img * imgbxt
 
 # this is an unbiased method for identifying predictors that can be used to
 # rank / sort data into clusters, some of which may be associated
-# with outlierness or low-quality data
+# with outlierness or low-quality data ... should be saved for each
+# image in order to assist QC
 templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
 rbp = antspyt1w.random_basis_projection( img, templatesmall, 10 )
 
@@ -77,7 +78,7 @@ img = ants.iMath( img, "Normalize" )
 img = ants.denoise_image( img, imgbxt, noise_model='Rician')
 img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
-##### hierarchical labeling
+##### hierarchical labeling - also outputs SNR measurements relevant to QC
 mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
 
