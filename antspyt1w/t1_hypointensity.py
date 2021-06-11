@@ -2,6 +2,7 @@ import ants
 import antspynet
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 import os
 import math
 from .get_data import get_data
@@ -70,7 +71,7 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0
 
     lesresamb = ants.threshold_image( lesresam, wmh_thresh, 1.0 )
     lgo=ants.label_geometry_measures( lesresamb, lesresam )
-    wmhsummary = get_data("wmh_evidence")
+    wmhsummary = pd.read_csv( get_data("wmh_evidence") )
     wmhsummary.at[0,'Value']=lgo.at[0,'VolumeInMillimeters']
     wmhsummary.at[1,'Value']=lgo.at[0,'IntegratedIntensity']
     wmhsummary.at[2,'Value']=float(qq)
