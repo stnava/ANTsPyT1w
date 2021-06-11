@@ -42,3 +42,44 @@ img = img * bxt
 
 ####################################################
 slf = lesionFeatures( img, wmprior, wmpriorskel )
+
+def execcer( x ):
+    mybig = round(c(88*2,256,256)/2)
+    templatesmall = resampleImage( template, mybig, useVoxels=TRUE )
+    # features = rank+dnz-image, lprob, wprob, wprior at mybig resolution
+    f1=as.array( antsApplyTransforms( templatesmall, slf['denoised'], slf['aff'], whichtoinvert=c(TRUE) ) )
+    f2 = as.array( antsApplyTransforms( templatesmall, slf['kmeanswmorig'] , slf['aff'], whichtoinvert=c(TRUE) ) )
+    f3 = as.array( antsApplyTransforms( templatesmall, slf['wmprob'] , slf['aff'], whichtoinvert=c(TRUE) ) )
+    f4 = as.array( antsApplyTransforms( templatesmall, slf['wmprior'] , slf['aff'], whichtoinvert=c(TRUE) ) )
+    farr = abind::abind( f1,f2,f3,f4,along=4)
+    mdl =  createUnetModel3D( list(NULL,NULL,NULL,4),
+      numberOfOutputs = 1,
+      numberOfLayers = 4,
+      mode = 'sigmoid' )
+    load_model_weights_hdf5( mdl, "unet.h5" )
+
+
+    pp = predict( mdl, array( farr, dim=c(1,dim(farr))))
+    refimg = slf$denoised %>% resampleImage( mybig, useVoxels=TRUE )
+    myles = as.antsImage( pp[1,,,,1] ) %>%
+      antsCopyImageInfo2( templatesmall )
+    lesresam = antsApplyTransforms( slf$denoised, myles, slf['aff'], whichtoinvert=c(FALSE) )
+
+    pdf( paste0( "wmh_example_",ct,".pdf" ), width=12, height=8 )
+    layout(matrix(1:2,nrow=2))
+    plot(slf$denoised,nslices=14,ncol=7,axis=3)
+    plot(slf$denoised,lesresam,nslices=14,ncol=7,axis=3)
+    dev.off()
+
+    # two pieces of evidence regarding whether there is a lesion or not
+    print("Max lesion prob:")
+    print(range(myles)) # this is important evidence of lesion presence
+    nchan=4
+    rnmdl =  createResNetModel3D( list(NULL,NULL,NULL,nchan),
+      numberOfClassificationLabels = 1,
+      layers = 1:3,
+      residualBlockSchedule = c(3,4,6,3), squeezeAndExcite = TRUE,
+      lowestResolution = 32, cardinality = 1, mode = "regression" )
+    load_model_weights_hdf5( rnmdl, 'discriminator.h5')
+    print("ResNetWMH-classifier: <0 = unlikely to have WMH lesion")
+    print( predict( rnmdl, array( farr, dim=c(1,dim(farr)))) )

@@ -42,7 +42,34 @@ def hemi_reg(
     input_template,
     input_template_hemisphere_labels,
     output_prefix,
+    padding=10,
     is_test=False ):
+    """
+    hemisphere focused registration that will produce jacobians and figures
+    support data inspection
+
+    input_image: input image
+
+    input_image_tissue_segmentation: segmentation produced in ANTs style ie with
+    labels defined by atropos brain segmentation (1 to 6)
+
+    input_image_hemisphere_segmentation: left (1) and right (2) hemisphere
+    segmentation
+
+    input_template: template to which we register; prefer a population-specific
+    relatively high-resolution template instead of MNI or biobank.
+
+    input_template_hemisphere_labels: a segmentation image of template hemispheres
+    with left labeled 1 and right labeled 2
+
+    output_prefix: a path and prefix for registration related outputs
+
+    padding: number of voxels to pad images, needed for diffzero
+
+    is_test: boolean. this function can be long running by default. this would
+    help testing more quickly by running fewer iterations.
+
+    """
 
     img = ants.rank_intensity( input_image )
     ionlycerebrum = ants.threshold_image( input_image_tissue_segmentation, 2, 4 )
@@ -50,7 +77,6 @@ def hemi_reg(
     tdap = dap( input_template )
     tonlycerebrum = ants.threshold_image( tdap, 2, 4 )
     maskinds=[2,3,4,5]
-    temcerebrum = ants.mask_image(tdap,tdap,maskinds,binarize=True).iMath("GetLargestComponent")
     template = ants.rank_intensity( input_template )
 
     regsegits=[200,200,20]
@@ -70,14 +96,13 @@ def hemi_reg(
     )
 
     # now do a hemisphere focused registration
-    mypad = 10 # pad the hemi mask for cropping - important due to diff_0
     synL = localsyn(
         img=img*ionlycerebrum,
         template=template*tonlycerebrum,
         hemiS=input_image_hemisphere_segmentation,
         templateHemi=input_template_hemisphere_labels,
         whichHemi=1,
-        padder=mypad,
+        padder=padding,
         iterations=regsegits,
         output_prefix = output_prefix + "left_hemi_reg",
     )
@@ -87,7 +112,7 @@ def hemi_reg(
         hemiS=input_image_hemisphere_segmentation,
         templateHemi=input_template_hemisphere_labels,
         whichHemi=2,
-        padder=mypad,
+        padder=padding,
         iterations=regsegits,
         output_prefix = output_prefix + "right_hemi_reg",
     )
