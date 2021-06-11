@@ -9,7 +9,18 @@ import pandas as pd
 import numpy as np
 
 def dap( x ):
-    return antspynet.deep_atropos( x )['segmentation_image']
+    bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
+    bbt = antspynet.brain_extraction( bbt, "t1" ) * bbt
+    qaff=ants.registration( bbt, x, "AffineFast", aff_metric='GC', random_seed=1 )
+    dapper = antspynet.deep_atropos( qaff['warpedmovout'], do_preprocessing=False )
+    dappertox = ants.apply_transforms(
+      x,
+      dapper['segmentation_image'],
+      qaff['fwdtransforms'],
+      interpolator='genericLabel',
+      whichtoinvert=[True]
+    )
+    return(  dappertox )
 
 # this function looks like it's for BF but it can be used for any local label pair
 def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, output_prefix ):
@@ -36,6 +47,10 @@ def hemi_reg(
     img = ants.rank_intensity( input_image )
     ionlycerebrum = ants.threshold_image( input_image_tissue_segmentation, 2, 4 )
 
+    tdap = dap( input_template )
+    tonlycerebrum = ants.threshold_image( tdap, 2, 4 )
+    maskinds=[2,3,4,5]
+    temcerebrum = ants.mask_image(tdap,tdap,maskinds,binarize=True).iMath("GetLargestComponent")
     template = ants.rank_intensity( input_template )
 
     regsegits=[200,200,20]
@@ -53,11 +68,6 @@ def hemi_reg(
         template,
         interp_type='genericLabel',
     )
-
-    tdap = dap( template )
-    tonlycerebrum = ants.threshold_image( tdap, 2, 4 )
-    maskinds=[2,3,4,5]
-    temcerebrum = ants.mask_image(tdap,tdap,maskinds,binarize=True).iMath("GetLargestComponent")
 
     # now do a hemisphere focused registration
     mypad = 10 # pad the hemi mask for cropping - important due to diff_0

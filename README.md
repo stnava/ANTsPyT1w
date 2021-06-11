@@ -65,28 +65,25 @@ img = ants.denoise_image( img, imgbxt, noise_model='Rician')
 img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
 ##### hierarchical labeling
-# FIXME - some atropos bug
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
+
+##### a relatively computationally costly registration as a catch-all complement
+# NOTE: myparc['hemisphere_labels'] may not be as good as
+# seg_hemi( img, templatea, templatealr )
+reg = antspyt1w.hemi_reg(
+    input_image = img,
+    input_image_tissue_segmentation = myparc['tissue_segmentation'],
+    input_image_hemisphere_segmentation = myparc['hemisphere_labels'],
+    input_template = templatea,
+    input_template_hemisphere_labels = templatealr,
+    output_prefix="/tmp/SYN",
+    is_test=True)
 
 ##### specialized labeling
 hippLR = antspyt1w.deep_hippo( img, templateb )
 # FIXME hypothalamus
 # FIXME wmh
 
-
-##### a relatively computationally costly registration as a catch-all complement
-quickseg = ants.threshold_image( img, "Otsu", 3)
-qreg = ants.registration( img, templatea, 'SyN' )
-qhemi = ants.apply_transforms( img, templatealr, qreg['fwdtransforms'],
-    interpolator='nearestNeighbor' )
-reg = antspyt1w.hemi_reg(
-    input_image = img,
-    input_image_tissue_segmentation = quickseg,
-    input_image_hemisphere_segmentation = qhemi,
-    input_template=templatea,
-    input_template_hemisphere_labels=templatealr,
-    output_prefix="/tmp/SYN",
-    is_test=True)
 
 
 ```

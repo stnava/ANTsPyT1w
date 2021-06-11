@@ -5,6 +5,8 @@ except:
     pass
 
 from .deep_dkt import deep_brain_parcellation
+from .deep_dkt import deep_tissue_segmentation
+from .deep_dkt import label_hemispheres
 from .deep_hippo import deep_hippo
 from .get_data import get_data
 from .hemi_reg import hemi_reg
