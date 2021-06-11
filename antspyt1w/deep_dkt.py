@@ -40,7 +40,6 @@ def deep_brain_parcellation(
             interpolator='genericLabel',
         )
 
-
     if verbose:
         print("Begin Atropos tissue segmentation")
 

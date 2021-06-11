@@ -29,7 +29,7 @@ python setup.py install
 * deformable registration with recommended parameters (after above processing) **FIXME**
 
 
-```
+```python
 import os
 os.environ["TF_NUM_INTEROP_THREADS"] = "8"
 os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
@@ -65,6 +65,7 @@ img = ants.denoise_image( img, imgbxt, noise_model='Rician')
 img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
 ##### hierarchical labeling
+# FIXME - some atropos bug
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
 
 ##### specialized labeling
