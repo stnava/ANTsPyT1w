@@ -71,6 +71,13 @@ img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
 
+##### accumulate data into data frames
+hemi = antspyt1w.map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
+tissue = antspyt1w.map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
+dktl = antspyt1w.map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
+dktp = antspyt1w.map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
+
+##### below here are more exploratory nice to have outputs
 myhypo = antspyt1w.t1_hypointensity( img,
   myparc['tissue_probabilities'][3], # wm posteriors
   templatea,

@@ -8,10 +8,11 @@ from pathlib import Path
 import os
 import pandas as pd
 import ants
+import tensorflow as tf
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data(name=None,force_download=False,version=7):
+def get_data(name=None,force_download=False,version=8):
     """
     Get ANTsPyT1w data filename
 
@@ -26,6 +27,7 @@ def get_data(name=None,force_download=False,version=7):
         Options:
             - 'all'
             - 'dkt'
+            - 'hemisphere'
             - 'lobes'
             - 'tissues'
             - 'T_template0'
@@ -54,17 +56,24 @@ def get_data(name=None,force_download=False,version=7):
     """
     os.makedirs(DATA_PATH, exist_ok=True)
 
+    def download_data( version ):
+        url = "https://ndownloader.figshare.com/articles/14766102/versions/" + str(version)
+        target_file_name = "14766102.zip"
+        target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
+            cache_subdir=DATA_PATH, extract = True )
+
+    if force_download == True :
+        download_data( version = version )
+
+
     files = []
     for fname in os.listdir(DATA_PATH):
         if (fname.endswith('.nii.gz')) or (fname.endswith('.jpg') or (fname.endswith('.csv'))):
             fname = os.path.join(DATA_PATH, fname)
             files.append(fname)
 
-    if len( files ) == 0 | force_download :
-        url = "https://ndownloader.figshare.com/articles/14766102/versions/" + str(version)
-        target_file_name = "14766102.zip"
-        target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
-            cache_subdir=DATA_PATH, extract = True )
+    if len( files ) == 0 :
+        download_data( version = version )
         for fname in os.listdir(DATA_PATH):
             if (fname.endswith('.nii.gz')) or (fname.endswith('.jpg') or (fname.endswith('.csv'))):
                 fname = os.path.join(DATA_PATH, fname)
