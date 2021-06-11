@@ -24,8 +24,8 @@ def deep_hippo(
             whichtoinvert=[True],
             interpolator='genericLabel',
         )
-        avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ) / nLoop
-        avgright = avgright + ants.threshold_image( hippr, 1, 1 ) / nLoop
+        avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ) / float(number_of_tries)
+        avgright = avgright + ants.threshold_image( hippr, 1, 1 ) / float(number_of_tries)
 
 
     avgright = ants.iMath(avgright,"Normalize")  # output: probability image right
