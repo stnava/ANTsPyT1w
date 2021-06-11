@@ -40,6 +40,9 @@ import antspynet
 import ants
 
 ##### get example data + reference templates
+# NOTE:  PPMI-3803-20120814-MRI_T1-I340756 is a good example of our naming style
+# Study-SubjectID-Date-Modality-UniqueID
+# where Modality could also be measurement or something else
 fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756')
 tfn = antspyt1w.get_data('T_template0')
 tfnw = antspyt1w.get_data('T_template0_WMP')
@@ -47,8 +50,6 @@ tlrfn = antspyt1w.get_data('T_template0_LR')
 bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 
 ##### read images and do simple bxt ops
-bxtmethod = 't1combined[5]' # better for individual subjects
-# bxtmethod = 't1' # good for templates
 templatea = ants.image_read( tfn )
 templatea = ( templatea * antspynet.brain_extraction( templatea, 't1' ) ).iMath( "Normalize" )
 templatealr = ants.image_read( tlrfn )
@@ -56,11 +57,20 @@ templateawmprior = ants.image_read( tfnw )
 templateb = ants.image_read( bfn )
 templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
 img = ants.image_read( fn )
-imgbxt = antspynet.brain_extraction( img, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent")
+imgbxt = antspyt1w.brain_extraction( img )
 img = img * imgbxt
 
 # optional - quick look at result
 # ants.plot(img,axis=2,ncol=8,nslices=24, filename="/tmp/temp.png" )
+
+# this is an unbiased method for identifying predictors that can be used to
+# rank / sort data into clusters, some of which may be associated
+# with outlierness or low-quality data
+templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
+rbp = antspyt1w.random_basis_projection( img, templatesmall, 10 )
+
+# assuming data is reasonable quality, we should proceed with the rest ...
+
 
 ##### intensity modifications
 img = ants.iMath( img, "Normalize" )

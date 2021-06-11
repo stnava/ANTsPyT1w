@@ -10,6 +10,19 @@ import pandas as pd
 import ants
 import tensorflow as tf
 
+import os.path
+from os import path
+import pickle
+import sys
+import ants
+import numpy as np
+import random
+import functools
+from operator import mul
+from scipy.sparse.linalg import svds
+
+from multiprocessing import Pool
+
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
 def get_data(name=None,force_download=False,version=8):
@@ -126,3 +139,41 @@ def map_segmentation_to_dataframe( segmentation_type, segmentation_image ):
     mydf = pd.read_csv( mydf_fn )
     mylgo = ants.label_geometry_measures( segmentation_image )
     return pd.merge( mydf, mylgo, how='left', on=["Label"] )
+
+
+
+def myproduct(lst):
+    return( functools.reduce(mul, lst) )
+
+
+def random_basis_projection( x, template, nBasis=10, random_state = 99 ):
+
+    np.random.seed(int(random_state))
+    nvox = template.shape
+    X = np.random.rand( nBasis+1, myproduct( nvox ) )
+    u, s, randbasis = svds(X, k=nBasis)
+    if randbasis.shape[1] != myproduct(nvox):
+        raise ValueError("columns in rand basis do not match the nvox product")
+
+    randbasis = np.transpose( randbasis )
+    rbpos = randbasis.copy()
+    rbpos[rbpos<0] = 0
+    norm = ants.iMath(x,"Normalize")
+    resamp = ants.registration( template, norm,
+        "Similarity", aff_metric='GC', random_seed=1 )['warpedmovout']
+    imat = ants.get_neighborhood_in_mask(resamp, resamp*0+1,[0,0,0], boundary_condition='mean' )
+    uproj = np.matmul(imat, randbasis)
+    uprojpos = np.matmul(imat, rbpos)
+    record = {}
+    uproj_counter = 0
+    for i in uproj[0]:
+        uproj_counter += 1
+        name = "RandBasisProj" + str(uproj_counter).zfill(2)
+        record[name] = i
+    uprojpos_counter = 0
+    for i in uprojpos[0]:
+        uprojpos_counter += 1
+        name = "RandBasisProjPos" + str(uprojpos_counter).zfill(2)
+        record[name] = i
+    df = pd.DataFrame(record, index=[0])
+    return df

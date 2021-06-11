@@ -5,6 +5,18 @@ import numpy as np
 import os
 import math
 
+def brain_extraction( x ):
+    """
+    quick brain extraction for individual images
+
+    x: input image
+
+    """
+    bxtmethod = 't1combined[5]' # better for individual subjects
+    bxt = antspynet.brain_extraction( x, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent")
+    return bxt
+
+
 def label_hemispheres( x, template, templateLR ):
     """
     quick somewhat noisy registration solution to hemisphere labeling. typically
