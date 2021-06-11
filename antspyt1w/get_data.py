@@ -6,11 +6,12 @@ __all__ = ['get_data']
 
 from pathlib import Path
 import os
-import tensorflow as tf
+import pandas as pd
+import ants
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data(name=None,force_download=False,version=6):
+def get_data(name=None,force_download=False,version=7):
     """
     Get ANTsPyT1w data filename
 
@@ -84,3 +85,34 @@ def get_data(name=None,force_download=False,version=6):
     if datapath is None:
         raise ValueError('File doesnt exist. Options: ' , os.listdir(DATA_PATH))
     return datapath
+
+
+
+def map_segmentation_to_dataframe( segmentation_type, segmentation_image ):
+    """
+    Match the segmentation to its appropriate data frame.  We do not check
+    if the segmentation_type and segmentation_image match; this may be indicated
+    by the number of missing values on output eg in column VolumeInMillimeters.
+
+    Arguments
+    ---------
+    segmentation_type : string
+        name of segmentation_type data frame to retrieve
+        Options:
+            - 'dkt'
+            - 'lobes'
+            - 'tissues'
+            - 'hemisphere'
+
+    segmentation_image : antsImage with same values (or mostly the same) as are
+        expected by segmentation_type
+
+    Returns
+    -------
+    dataframe
+
+    """
+    mydf_fn = get_data( segmentation_type )
+    mydf = pd.read_csv( mydf_fn )
+    mylgo = ants.label_geometry_measures( segmentation_image )
+    return pd.merge( mydf, mylgo, how='left', on=["Label"] )

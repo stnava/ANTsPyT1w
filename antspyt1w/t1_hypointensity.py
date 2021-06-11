@@ -8,16 +8,17 @@ from .get_data import get_data
 
 def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
     """
-    generate input features supporting t1-based hypointensity algorithms
+    provide measurements that may help decide if a given t1 image is likely
+    to have hypointensity.
 
-    input_image: input image; bias-corrected, brain-extracted and (potentially)
-    registered to a template (uncertain if this is needed as yet)
+    input_image: input image; bias-corrected, brain-extracted and denoised
 
     wmpriorIn: template-based tissue prior
 
     returns:
-        - probability image denoting WMH probability
-        - a scalar probability than indicates the likelihood that the input
+        - probability image denoting WMH probability; higher values indicate
+          that WMH is more likely
+        - an integral probability that indicates the likelihood that the input
             image content supports the presence of white matter hypointensity
 
     """
