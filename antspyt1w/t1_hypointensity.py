@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 import os
 import math
+from .get_data import get_data
 
 def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
     """
@@ -13,6 +14,11 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
     registered to a template (uncertain if this is needed as yet)
 
     wmpriorIn: template-based tissue prior
+
+    returns:
+        - probability image denoting WMH probability
+        - a scalar probability than indicates the likelihood that the input
+            image content supports the presence of white matter hypointensity
 
     """
     mybig = [88,128,128]
@@ -40,7 +46,7 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
         number_of_layers = 4,
         mode = 'sigmoid' )
 
-    wmhunet.load_weights( antspyt1w.get_data("simwmhseg") )
+    wmhunet.load_weights( get_data("simwmhseg") )
 
     pp = wmhunet.predict( myfeatures )
 
@@ -51,9 +57,9 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
     rnmdl = antspynet.create_resnet_model_3d( inshape,
       number_of_classification_labels = 1,
       layers = (1,2,3),
-      residual_block_schedule = (3,4,6,3), squeezeAndExcite = True,
-      lowestResolution = 32, cardinality = 1, mode = "regression" )
-    rnmdl.load_weights( antspyt1w.get_data("simwmhdisc") )
+      residual_block_schedule = (3,4,6,3), squeeze_and_excite = True,
+      lowest_resolution = 32, cardinality = 1, mode = "regression" )
+    rnmdl.load_weights( get_data("simwmhdisc") )
     qq = rnmdl.predict( myfeatures )
 
     return {
