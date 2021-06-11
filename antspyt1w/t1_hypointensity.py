@@ -6,7 +6,7 @@ import os
 import math
 from .get_data import get_data
 
-def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
+def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0.1 ):
     """
     provide measurements that may help decide if a given t1 image is likely
     to have hypointensity.
@@ -15,7 +15,10 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
 
     wmpriorIn: template-based tissue prior
 
+    wmh_thresh: float used to threshold WMH probability and produce summary data
+
     returns:
+        - wmh_summary: summary data frame based on thresholding WMH probability at wmh_thresh
         - probability image denoting WMH probability; higher values indicate
           that WMH is more likely
         - an integral evidence that indicates the likelihood that the input
@@ -65,7 +68,16 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
     rnmdl.load_weights( get_data("simwmdisc") )
     qq = rnmdl.predict( myfeatures )
 
+    lesresamb = ants.threshold_image( lesresam, wmh_thresh, 1.0 )
+    lgo=ants.label_geometry_measures( lesresamb, lesresam )
+    wmhsummary = get_data("wmh_evidence")
+    wmhsummary.at[0,'Value']=lgo.at[0,'VolumeInMillimeters']
+    wmhsummary.at[1,'Value']=lgo.at[0,'IntegratedIntensity']
+    wmhsummary.at[2,'Value']=float(qq)
+
     return {
+        "wmh_summary":wmhsummary,
         "wmh_probability_image":lesresam,
         "wmh_evidence_of_existence":float(qq),
+        "wmh_max_prob":lesresam.max(),
         "features":myfeatures }

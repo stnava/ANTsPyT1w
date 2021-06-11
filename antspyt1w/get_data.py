@@ -39,6 +39,7 @@ def get_data(name=None,force_download=False,version=8):
             - 'PPMI-3803-20120814-MRI_T1-I340756'
             - 'simwmseg'
             - 'simwmdisc'
+            - 'wmh_evidence'
 
     force_download: boolean
 
