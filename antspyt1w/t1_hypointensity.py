@@ -59,7 +59,7 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
       layers = (1,2,3),
       residual_block_schedule = (3,4,6,3), squeeze_and_excite = True,
       lowest_resolution = 32, cardinality = 1, mode = "regression" )
-    rnmdl.load_weights( get_data("simwmhdisc") )
+    rnmdl.load_weights( get_data("simwmdisc") )
     qq = rnmdl.predict( myfeatures )
 
     return {
