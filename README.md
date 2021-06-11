@@ -2,31 +2,43 @@
 
 ## reference processing for t1-weighted neuroimages (human)
 
-keep track of preferred algorithm variations
+the outputs of these processes can be used for data inspection/cleaning/triage
+as well for interrogating neuroscientific hypotheses.
+
+this package also keeps track of the latest preferred algorithm variations for
+production environments.
+
+install by calling (within the source directory):
 
 ```
 python setup.py install
 ```
 
+we may make this package available via pypi after we add more testing and
+also after making antspynet available.
+
 # what this will do
 
-* provide example data [check]
+- [x] provide example data
 
-* brain extraction [check]
+- [x] brain extraction
 
-* denoising [check]
+- [x] denoising
 
-* n4 bias correction [check]
+- [x] n4 bias correction
 
-* brain parcellation into tissues, hemispheres, lobes and regions [check]
+- [x] brain parcellation into tissues, hemispheres, lobes and regions
 
-* hippocampus specific segmentation [check]
+- [x] hippocampus specific segmentation
 
-* t1 hypointensity segmentation and classification **FIXME**
+- [x] t1 hypointensity segmentation and classification *exploratory*
 
-* hypothalamus segmentation **FIXME**
+- [x] deformable registration with robust and repeatable parameters
 
-* deformable registration with recommended parameters (after above processing)
+- [x] helpers that organize and annotate segmentation variables into data frames
+
+- [] hypothalamus segmentation *FIXME/TODO*
+
 
 # example processing
 
