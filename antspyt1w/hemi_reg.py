@@ -9,19 +9,7 @@ import pandas as pd
 import numpy as np
 
 def dap( x ):
-    bbt = ants.image_read( antspynet.get_antsxnet_data( "biobank" ) )
-    bbt = antspynet.brain_extraction( bbt, "t1" ) * bbt
-    bbt = ants.rank_intensity( bbt )
-    qaff=ants.registration( bbt, x, "AffineFast", aff_metric='GC', random_seed=1 )
-    dapper = antspynet.deep_atropos( qaff['warpedmovout'], do_preprocessing=False )
-    dappertox = ants.apply_transforms(
-      x,
-      dapper['segmentation_image'],
-      qaff['fwdtransforms'],
-      interpolator='genericLabel',
-      whichtoinvert=[True]
-    )
-    return(  dappertox )
+    return antspynet.deep_atropos( x )['segmentation_image']
 
 # this function looks like it's for BF but it can be used for any local label pair
 def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, output_prefix ):
@@ -38,14 +26,15 @@ def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, 
 
 def hemi_reg(
     input_image,
-    input_image_segmentation,
+    input_image_tissue_segmentation,
+    input_image_hemisphere_segmentation,
     input_template,
     input_template_hemisphere_labels,
     output_prefix,
     is_test=False ):
 
     img = ants.rank_intensity( input_image )
-    ionlycerebrum = ants.threshold_image( input_image_segmentation, 2, 4 )
+    ionlycerebrum = ants.threshold_image( input_image_tissue_segmentation, 2, 4 )
 
     template = ants.rank_intensity( input_template )
 
@@ -59,8 +48,8 @@ def hemi_reg(
     if is_test:
         regsegits=[8,0,0]
 
-    templateHemi = ants.resample_image_to_target(
-        templateHemi,
+    input_template_hemisphere_labels = ants.resample_image_to_target(
+        input_template_hemisphere_labels,
         template,
         interp_type='genericLabel',
     )
@@ -75,8 +64,8 @@ def hemi_reg(
     synL = localsyn(
         img=img*ionlycerebrum,
         template=template*tonlycerebrum,
-        hemiS=hemiS,
-        templateHemi=templateHemi,
+        hemiS=input_image_hemisphere_segmentation,
+        templateHemi=input_template_hemisphere_labels,
         whichHemi=1,
         padder=mypad,
         iterations=regsegits,
@@ -85,8 +74,8 @@ def hemi_reg(
     synR = localsyn(
         img=img*ionlycerebrum,
         template=template*tonlycerebrum,
-        hemiS=hemiS,
-        templateHemi=templateHemi,
+        hemiS=input_image_hemisphere_segmentation,
+        templateHemi=input_template_hemisphere_labels,
         whichHemi=2,
         padder=mypad,
         iterations=regsegits,

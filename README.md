@@ -43,7 +43,7 @@ import ants
 fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756')
 tfn = antspyt1w.get_data('T_template0')
 tlrfn = antspyt1w.get_data('T_template0_LR')
-bfn = antspynet.get_antsxnet_data( "biobank" )
+bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 
 ##### read images and do simple bxt ops
 bxtmethod = 't1combined[5]' # better for individual subjects
@@ -56,13 +56,13 @@ templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath(
 img = ants.image_read( fn )
 imgbxt = antspynet.brain_extraction( img, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent")
 img = img * imgbxt
-# quick look at result
-ants.plot(img,axis=2,ncol=8,nslices=24 ) # ,filename=fignameL) # or write to file
+# optional - quick look at result
+# ants.plot(img,axis=2,ncol=8,nslices=24, filename="/tmp/temp.png" )
 
 ##### intensity modifications
 img = ants.iMath( img, "Normalize" )
 img = ants.denoise_image( img, imgbxt, noise_model='Rician')
-img = ants.n4_bias_field_correction( img )
+img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
 ##### hierarchical labeling
 myparc = antspyt1w.deep_brain_parcellation( img, templateb )
@@ -72,7 +72,20 @@ hippLR = antspyt1w.deep_hippo( img, templateb )
 # FIXME hypothalamus
 # FIXME wmh
 
-##### a computationally costly registration as a catch-all complement to above
-# FIXME hemi-reg
+
+##### a relatively computationally costly registration as a catch-all complement
+quickseg = ants.threshold_image( img, "Otsu", 3)
+qreg = ants.registration( img, templatea, 'SyN' )
+qhemi = ants.apply_transforms( img, templatealr, qreg['fwdtransforms'],
+    interpolator='nearestNeighbor' )
+reg = antspyt1w.hemi_reg(
+    input_image = img,
+    input_image_tissue_segmentation = quickseg,
+    input_image_hemisphere_segmentation = qhemi,
+    input_template=templatea,
+    input_template_hemisphere_labels=templatealr,
+    output_prefix="/tmp/SYN",
+    is_test=True)
+
 
 ```

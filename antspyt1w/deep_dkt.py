@@ -50,6 +50,9 @@ def deep_brain_parcellation(
         use_spatial_priors=1,
     )
 
+    if verbose:
+        print("End Atropos tissue segmentation")
+
 
     myk='segmentation_image'
     atr[myk] = ants.apply_transforms(
