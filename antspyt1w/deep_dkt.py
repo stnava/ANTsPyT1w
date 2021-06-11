@@ -96,6 +96,21 @@ def deep_brain_parcellation(
         labels explicitly into cortical segmentation
 
     verbose: boolean
+
+
+    Returns
+    -------
+    a dictionary containing:
+
+    - tissue_segmentation : 6 tissue segmentation
+    - tissue_probabilities : probability images associated with above
+    - dkt_parcellation : tissue agnostic DKT parcellation
+    - dkt_lobes : major lobes of the brain
+    - dkt_cortex: cortical tissue DKT parcellation (if requested)
+    - hemisphere_labels: free to get hemisphere labels
+    - wmSNR : white matter signal-to-noise ratio
+    - wmcsfSNR : white matter to csf signal-to-noise ratio
+
     """
     if verbose:
         print("Begin registration")
@@ -149,10 +164,20 @@ def deep_brain_parcellation(
         cortprop = ants.iMath( cortprop, 'PropagateLabelsThroughMask',
             cortlab, 1, 0)
 
+    wmseg = ants.threshold_image( mydap['segmentation_image'], 3, 3 )
+    wmMean = target_image[ wmseg == 1 ].mean()
+    wmStd = target_image[ wmsegSR == 1 ].std()
+    csfseg = ants.threshold_image( mydap['segmentation_image'], 1, 1 )
+    csfStd = target_image[ csfsegSR == 1 ].std()
+    wmSNR = wmMean/wmStd
+    wmcsfSNR = wmMean/csfStd
+
     return {
         "tissue_segmentation":mydap['segmentation_image'],
         "tissue_probabilities":mydap['probability_images'],
         "dkt_parcellation":dkt['segmentation_image'],
         "dkt_lobes":dkt['lobar_parcellation'],
         "dkt_cortex": cortprop,
-        "hemisphere_labels": myhemi }
+        "hemisphere_labels": myhemi,
+        "wmSNR": wmSNR,
+        "wmcsfSNR": wmcsfSNR, }

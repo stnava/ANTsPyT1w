@@ -18,8 +18,10 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
     returns:
         - probability image denoting WMH probability; higher values indicate
           that WMH is more likely
-        - an integral probability that indicates the likelihood that the input
-            image content supports the presence of white matter hypointensity
+        - an integral evidence that indicates the likelihood that the input
+            image content supports the presence of white matter hypointensity.
+            greater than zero is supportive of WMH.  the higher, the more so.
+            less than zero is evidence against.
 
     """
     mybig = [88,128,128]
@@ -60,11 +62,10 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior ):
       layers = (1,2,3),
       residual_block_schedule = (3,4,6,3), squeeze_and_excite = True,
       lowest_resolution = 32, cardinality = 1, mode = "regression" )
-    print("FIXME load weights once this is correct")
-    # rnmdl.load_weights( get_data("simwmdisc") )
+    rnmdl.load_weights( get_data("simwmdisc") )
     qq = rnmdl.predict( myfeatures )
 
     return {
         "wmh_probability_image":lesresam,
-        "wmh_probability_of_existence":float(qq),
+        "wmh_evidence_of_existence":float(qq),
         "features":myfeatures }
