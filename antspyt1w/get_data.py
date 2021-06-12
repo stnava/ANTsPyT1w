@@ -25,7 +25,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data(name=None,force_download=False,version=8):
+def get_data(name=None,force_download=False,version=10):
     """
     Get ANTsPyT1w data filename
 
