@@ -53,7 +53,7 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0
         number_of_layers = 4,
         mode = 'sigmoid' )
 
-    wmhunet.load_weights( get_data("simwmhseg") )
+    wmhunet.load_weights( get_data("simwmhseg", target_extension='.h5') )
 
     pp = wmhunet.predict( myfeatures )
 
@@ -66,12 +66,12 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0
       layers = (1,2,3),
       residual_block_schedule = (3,4,6,3), squeeze_and_excite = True,
       lowest_resolution = 32, cardinality = 1, mode = "regression" )
-    rnmdl.load_weights( get_data("simwmdisc") )
+    rnmdl.load_weights( get_data("simwmdisc", target_extension='.h5' ) )
     qq = rnmdl.predict( myfeatures )
 
     lesresamb = ants.threshold_image( lesresam, wmh_thresh, 1.0 )
     lgo=ants.label_geometry_measures( lesresamb, lesresam )
-    wmhsummary = pd.read_csv( get_data("wmh_evidence") )
+    wmhsummary = pd.read_csv( get_data("wmh_evidence", target_extension='.csv' ) )
     wmhsummary.at[0,'Value']=lgo.at[0,'VolumeInMillimeters']
     wmhsummary.at[1,'Value']=lgo.at[0,'IntegratedIntensity']
     wmhsummary.at[2,'Value']=float(qq)

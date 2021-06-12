@@ -19,25 +19,25 @@ also after making antspynet available.
 
 # what this will do
 
-- [x] provide example data
+- provide example data
 
-- [x] brain extraction
+- brain extraction
 
-- [x] denoising
+- denoising
 
-- [x] n4 bias correction
+- n4 bias correction
 
-- [x] brain parcellation into tissues, hemispheres, lobes and regions
+- brain parcellation into tissues, hemispheres, lobes and regions
 
-- [x] hippocampus specific segmentation
+- hippocampus specific segmentation
 
-- [x] t1 hypointensity segmentation and classification *exploratory*
+- t1 hypointensity segmentation and classification *exploratory*
 
-- [x] deformable registration with robust and repeatable parameters
+- deformable registration with robust and repeatable parameters
 
-- [x] helpers that organize and annotate segmentation variables into data frames
+- helpers that organize and annotate segmentation variables into data frames
 
-- [] hypothalamus segmentation *FIXME/TODO*
+- hypothalamus segmentation *FIXME/TODO*
 
 
 # example processing
@@ -137,3 +137,10 @@ myhypo = antspyt1w.t1_hypointensity( img,
 ```
 
 ## big FIXME: high-level regression test on the outputs above ...
+
+## to publish a release
+
+```
+python3 -m build
+python -m twine upload -u username -p password  dist/*
+```
