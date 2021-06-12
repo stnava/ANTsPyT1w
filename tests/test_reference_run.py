@@ -49,7 +49,7 @@ img = ants.denoise_image( img, imgbxt, noise_model='Rician')
 img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 testingClass.assertAlmostEqual(
     float( img.mean() ),
-    float( -0.07115734368562698 ), 5, "img mean after n4 result not close enough")
+    float( 0.07115734368562698 ), 5, "img mean after n4 result not close enough")
 
 ##### hierarchical labeling
 myparc = antspyt1w.deep_brain_parcellation( img, templateb,
