@@ -14,8 +14,7 @@ install by calling (within the source directory):
 python setup.py install
 ```
 
-we may make this package available via pypi after we add more testing and
-also after making antspynet available.
+or install via `pip install antspyt1w`
 
 # what this will do
 
@@ -136,7 +135,6 @@ myhypo = antspyt1w.t1_hypointensity( img,
 
 ```
 
-## big FIXME: high-level regression test on the outputs above ...
 
 ## to publish a release
 
