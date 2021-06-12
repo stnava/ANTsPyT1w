@@ -25,7 +25,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data(name=None,force_download=False,version=10):
+def get_data( name=None, force_download=False, version=12, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -53,6 +53,7 @@ def get_data(name=None,force_download=False,version=10):
             - 'simwmseg'
             - 'simwmdisc'
             - 'wmh_evidence'
+            - 'wm_major_tracts'
 
     force_download: boolean
 
@@ -82,14 +83,14 @@ def get_data(name=None,force_download=False,version=10):
 
     files = []
     for fname in os.listdir(DATA_PATH):
-        if (fname.endswith('.nii.gz')) or (fname.endswith('.jpg') or (fname.endswith('.csv'))):
+        if ( fname.endswith(target_extension) ) :
             fname = os.path.join(DATA_PATH, fname)
             files.append(fname)
 
     if len( files ) == 0 :
         download_data( version = version )
         for fname in os.listdir(DATA_PATH):
-            if (fname.endswith('.nii.gz')) or (fname.endswith('.jpg') or (fname.endswith('.csv'))):
+            if ( fname.endswith(target_extension) ) :
                 fname = os.path.join(DATA_PATH, fname)
                 files.append(fname)
 
@@ -102,7 +103,7 @@ def get_data(name=None,force_download=False,version=10):
         mystem = (Path(fname).resolve().stem)
         mystem = (Path(mystem).resolve().stem)
         mystem = (Path(mystem).resolve().stem)
-        if (name == mystem ) :
+        if ( name == mystem and fname.endswith(target_extension) ) :
             datapath = os.path.join(DATA_PATH, fname)
 
     if datapath is None:
@@ -126,6 +127,7 @@ def map_segmentation_to_dataframe( segmentation_type, segmentation_image ):
             - 'lobes'
             - 'tissues'
             - 'hemisphere'
+            - 'wm_major_tracts'
 
     segmentation_image : antsImage with same values (or mostly the same) as are
         expected by segmentation_type

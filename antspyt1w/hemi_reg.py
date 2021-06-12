@@ -7,6 +7,7 @@ import tensorflow as tf
 import sys
 import pandas as pd
 import numpy as np
+import math
 
 def dap( x ):
     bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
@@ -26,8 +27,10 @@ def dap( x ):
 def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, output_prefix ):
     ihemi=img*ants.threshold_image( hemiS, whichHemi, whichHemi )
     themi=template*ants.threshold_image( templateHemi, whichHemi, whichHemi )
-    hemicropmask = ants.threshold_image( templateHemi, whichHemi, whichHemi ).iMath("MD",padder)
-    tcrop = ants.crop_image( themi, hemicropmask )
+    hemicropmask = ants.threshold_image( templateHemi *
+        ants.threshold_image( themi, 1e-3, math.inf),
+        whichHemi, whichHemi ).iMath("MD",padder)
+    tcrop = ants.crop_image( themi, hemicropmask  )
     syn = ants.registration( tcrop, ihemi, 'SyN', aff_metric='GC',
         syn_metric='CC', syn_sampling=2, reg_iterations=iterations,
         flow_sigma=3.0, total_sigma=0.50,

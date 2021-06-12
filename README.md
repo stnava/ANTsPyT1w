@@ -56,10 +56,10 @@ import ants
 # NOTE:  PPMI-3803-20120814-MRI_T1-I340756 is a good example of our naming style
 # Study-SubjectID-Date-Modality-UniqueID
 # where Modality could also be measurement or something else
-fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756')
-tfn = antspyt1w.get_data('T_template0')
-tfnw = antspyt1w.get_data('T_template0_WMP')
-tlrfn = antspyt1w.get_data('T_template0_LR')
+fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
+tfn = antspyt1w.get_data('T_template0', target_extension='.nii.gz' )
+tfnw = antspyt1w.get_data('T_template0_WMP', target_extension='.nii.gz' )
+tlrfn = antspyt1w.get_data('T_template0_LR', target_extension='.nii.gz' )
 bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 
 ##### read images and do simple bxt ops
@@ -101,6 +101,8 @@ hemi = antspyt1w.map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere
 tissue = antspyt1w.map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
 dktl = antspyt1w.map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
 dktp = antspyt1w.map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
+# see below for how to easily pivot into wide format
+# https://stackoverflow.com/questions/28337117/how-to-pivot-a-dataframe-in-pandas
 
 ##### traditional deformable registration as a high-resolution output that
 # will allow us to "fill out" any regions we may want in the future and also
@@ -114,15 +116,23 @@ reg = antspyt1w.hemi_reg(
     output_prefix="/tmp/SYN",
     is_test=True) # set to False for a real run
 
+##### how to use the hemi-reg output to generate any roi value from a template roi
+wm_tracts = ants.image_read( antspyt1w.get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
+wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
+  interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
+wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
+  interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
+wmtdfL = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
+wmtdfR = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
+
+##### specialized labeling
+hippLR = antspyt1w.deep_hippo( img, templateb )
+
 ##### Exploratory: nice to have - t1-based white matter hypointensity estimates
 myhypo = antspyt1w.t1_hypointensity( img,
   myparc['tissue_probabilities'][3], # wm posteriors
   templatea,
   templateawmprior )
-
-
-##### specialized labeling
-hippLR = antspyt1w.deep_hippo( img, templateb )
 
 ```
 

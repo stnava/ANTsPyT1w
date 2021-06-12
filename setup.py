@@ -1,9 +1,13 @@
 
 from setuptools import setup
 
+long_description = open("README.md").read()
+
 setup(name='antspyt1w',
-      version='0.0.0',
+      version='0.1.0',
       description='T1w human neuroimage processing with antspyx',
+      long_description=long_description,
+      long_description_content_type="text/markdown; charset=UTF-8; variant=GFM",
       url='https://github.com/stnava/ANTsPyT1w',
       author='Avants, Gosselin, Tustison',
       author_email='stnava@gmail.com',
