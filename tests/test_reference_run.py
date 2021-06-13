@@ -5,6 +5,9 @@ os.environ["TF_NUM_INTEROP_THREADS"] = "8"
 os.environ["TF_NUM_INTRAOP_THREADS"] = "8"
 os.environ["ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"] = "8"
 
+import tempfile
+import shutil
+
 import antspyt1w
 import antspynet
 import ants
@@ -39,7 +42,8 @@ testingClass.assertAlmostEqual(
     float( -0.4285278603876295 ), 5, "RBP result not close enough")
 
 # assuming data is reasonable quality, we should proceed with the rest ...
-mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
+mylr = antspyt1w.label_hemispheres( img, templatea, templatealr,
+    reg_iterations=[200,0,0,0] ) # few iterations to accelerate testing
 
 # optional - quick look at result
 # ants.plot(img,axis=2,ncol=8,nslices=24, filename="/tmp/temp.png" )
@@ -72,40 +76,39 @@ testingClass.assertAlmostEqual(
     float( 12595.0 ), 8, "dktp volume not close enough")
 
 ##### traditional deformable registration as a high-resolution complement to above
+temp_dir = tempfile.TemporaryDirectory()
 reg = antspyt1w.hemi_reg(
     input_image = img,
     input_image_tissue_segmentation = myparc['tissue_segmentation'],
     input_image_hemisphere_segmentation = mylr,
     input_template=templatea,
     input_template_hemisphere_labels=templatealr,
-    output_prefix="/tmp/SYN",
-    is_test=False )
+    output_prefix= str(temp_dir.name) + "SYN",
+    is_test=True )
 
 testingClass.assertAlmostEqual(
     float( reg['rhjac'].max() ),
-    float( 1.1146247386932373 ), 2, "rhjac max not close enough")
+    float( 0.5167889595031738 ), 4, "rhjac max not close enough")
 
 ##### how to use the hemi-reg output to generate any roi value from a template roi
 wm_tracts = ants.image_read( antspyt1w.get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
 wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
   interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
-wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
-  interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
 wmtdfL = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
-wmtdfR = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
 
 testingClass.assertAlmostEqual(
     float( wmtdfL['VolumeInMillimeters'][1]/10000 ),
-    float( 19572.0/10000 ), 2, "wmtdfL volume not close enough")
+    float( 19806.0/10000 ), 4, "wmtdfL volume not close enough")
 
 ##### specialized labeling for hippocampus
-hippLR = antspyt1w.deep_hippo( img, templateb )
+hippLR = antspyt1w.deep_hippo( img, templateb, 1 )
 testingClass.assertAlmostEqual(
     float( hippLR['HLStats']['VolumeInMillimeters'][0]/20000.0 ),
     float( 2822.00/20000.0 ), 2, "HLStats volume not close enough")
 
 ##### below here are more exploratory nice to have outputs
 myhypo = antspyt1w.t1_hypointensity( img,
+  myparc['tissue_segmentation'],
   myparc['tissue_probabilities'][3], # wm posteriors
   templatea,
   templateawmprior )
@@ -113,6 +116,8 @@ myhypo = antspyt1w.t1_hypointensity( img,
 testingClass.assertAlmostEqual(
     float( myhypo['wmh_summary']['Value'][1]  * 0.0001 ),
     float( 12318.5093207285 * 0.0001), 2, "wmh_summary integral not close enough")
+
+temp_dir.cleanup()
 
 ##### specialized labeling for hypothalamus
 # FIXME hypothalamus
