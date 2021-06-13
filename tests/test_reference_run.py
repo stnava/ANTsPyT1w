@@ -67,13 +67,13 @@ dktp = antspyt1w.map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'
 
 testingClass.assertAlmostEqual(
     float( hemi['VolumeInMillimeters'][0] ),
-    float( 733068.0 ), 8, "hemi volume not close enough")
+    float( 726284.0 ), 8, "hemi volume not close enough")
 testingClass.assertAlmostEqual(
     float( dktl['VolumeInMillimeters'][0] ),
-    float( 186208.0 ), 8, "dktl volume not close enough")
+    float( 184242.0 ), 8, "dktl volume not close enough")
 testingClass.assertAlmostEqual(
     float( dktp['VolumeInMillimeters'][1] ),
-    float( 12595.0 ), 8, "dktp volume not close enough")
+    float( 12581.0 ), 8, "dktp volume not close enough")
 
 ##### traditional deformable registration as a high-resolution complement to above
 temp_dir = tempfile.TemporaryDirectory()
@@ -88,7 +88,7 @@ reg = antspyt1w.hemi_reg(
 
 testingClass.assertAlmostEqual(
     float( reg['rhjac'].max() ),
-    float( 0.5167889595031738 ), 4, "rhjac max not close enough")
+    float( 0.5199757814407349 ), 4, "rhjac max not close enough")
 
 ##### how to use the hemi-reg output to generate any roi value from a template roi
 wm_tracts = ants.image_read( antspyt1w.get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
@@ -98,7 +98,7 @@ wmtdfL = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL 
 
 testingClass.assertAlmostEqual(
     float( wmtdfL['VolumeInMillimeters'][1]/10000 ),
-    float( 19806.0/10000 ), 4, "wmtdfL volume not close enough")
+    float( 19825.0/10000 ), 4, "wmtdfL volume not close enough")
 
 ##### specialized labeling for hippocampus
 hippLR = antspyt1w.deep_hippo( img, templateb, 1 )

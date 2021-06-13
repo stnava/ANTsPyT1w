@@ -211,151 +211,6 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
 
 
 
-
-def hierarchical( x, output_prefix, verbose=True ):
-    """
-    Default processing for a T1-weighted image.  See README.
-
-    Arguments
-    ---------
-    x : T1-weighted neuroimage antsImage
-
-    output_prefix: string directory and prefix
-
-    Returns
-    -------
-    dataframes and associated derived data
-
-    """
-    if verbose:
-        print("Read")
-    tfn = get_data('T_template0', target_extension='.nii.gz' )
-    tfnw = get_data('T_template0_WMP', target_extension='.nii.gz' )
-    tlrfn = get_data('T_template0_LR', target_extension='.nii.gz' )
-    bfn = antspynet.get_antsxnet_data( "croppedMni152" )
-
-    ##### read images and do simple bxt ops
-    templatea = ants.image_read( tfn )
-    if verbose:
-        print("bxt")
-    templatea = ( templatea * antspynet.brain_extraction( templatea, 't1' ) ).iMath( "Normalize" )
-    templateawmprior = ants.image_read( tfnw )
-    templatealr = ants.image_read( tlrfn )
-    templateb = ants.image_read( bfn )
-    templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
-    imgbxt = brain_extraction( x )
-    img = x * imgbxt
-
-    if verbose:
-        print("rbp")
-
-    # this is an unbiased method for identifying predictors that can be used to
-    # rank / sort data into clusters, some of which may be associated
-    # with outlierness or low-quality data
-    templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
-    rbp = random_basis_projection( img, templatesmall )
-
-
-    if verbose:
-        print("hemi")
-
-    # assuming data is reasonable quality, we should proceed with the rest ...
-    mylr = label_hemispheres( img, templatea, templatealr )
-
-    if verbose:
-        print("intensity")
-
-    ##### intensity modifications
-    img = ants.iMath( img, "Normalize" )
-    img = ants.denoise_image( img, imgbxt, noise_model='Rician')
-    img = ants.n4_bias_field_correction( img ).iMath("Normalize")
-
-    # optional - quick look at result
-    ants.plot(img,axis=2,ncol=8,nslices=24,
-        filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
-
-    if verbose:
-        print("parcellation")
-
-    ##### hierarchical labeling
-    myparc = deep_brain_parcellation( img, templateb,
-        do_cortical_propagation=True, verbose=False )
-
-    ##### accumulate data into data frames
-    hemi = map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
-    tissue = map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
-    dktl = map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
-    dktp = map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
-
-    if verbose:
-        print("registration")
-
-    ##### traditional deformable registration as a high-resolution complement to above
-    reg = hemi_reg(
-        input_image = img,
-        input_image_tissue_segmentation = myparc['tissue_segmentation'],
-        input_image_hemisphere_segmentation = mylr,
-        input_template=templatea,
-        input_template_hemisphere_labels=templatealr,
-        output_prefix = output_prefix + "_SYN",
-        is_test=False )
-
-    if verbose:
-        print("wm tracts")
-
-    ##### how to use the hemi-reg output to generate any roi value from a template roi
-    wm_tracts = ants.image_read( get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
-    wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
-      interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
-    wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
-      interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
-    wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
-    wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
-
-    if verbose:
-        print("hippocampus")
-
-    ##### specialized labeling for hippocampus
-    hippLR = deep_hippo( img, templateb )
-
-    if verbose:
-        print("WMH")
-
-    ##### below here are more exploratory nice to have outputs
-    myhypo = t1_hypointensity( img,
-      myparc['tissue_probabilities'][3], # wm posteriors
-      templatea,
-      templateawmprior )
-
-    mydataframes = {
-        "hemispheres":hemi,
-        "tissues":tissue,
-        "dktlobes":dktl,
-        "dktregions":dktp,
-        "wmtracts_left":wmtdfL,
-        "wmtracts_right":wmtdfR,
-        "wmh":myhypo['wmh_summary']
-        }
-
-    outputs = {
-        "brain_n4_dnz": img,
-        "brain_extraction": imgbxt,
-        "rbp": rbp,
-        "left_right": mylr,
-        "dkt_parc": myparc,
-        "registration":reg,
-        "hippLR":hippLR,
-        "white_matter_hypointensity":myhypo,
-        "wm_tractsL":wm_tractsL,
-        "wm_tractsR":wm_tractsR,
-        "dataframes": mydataframes
-    }
-
-    return outputs
-
-
-
-
 def brain_extraction( x ):
     """
     quick brain extraction for individual images
@@ -382,7 +237,10 @@ def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     reg_iterations: reg_iterations for ants.registration
 
     """
-    reg = ants.registration( x, template, 'SyN',
+    reg = ants.registration(
+        ants.rank_intensity(x),
+        ants.rank_intensity(template),
+        'SyN',
         aff_metric='GC',
         syn_metric='CC',
         syn_sampling=2,
@@ -407,11 +265,13 @@ def deep_tissue_segmentation( x, template=None, registration_map=None ):
     if template is None:
         bbt = ants.image_read( antspynet.get_antsxnet_data( "biobank" ) )
         template = antspynet.brain_extraction( bbt, "t1" ) * bbt
-        qaff=ants.registration( bbt, x, "AffineFast", aff_metric='GC', random_seed=1 )
+        qaff=ants.registration( bbt, ants.rank_intensity(x), "AffineFast", aff_metric='GC', random_seed=1 )
 
     bbtr = ants.rank_intensity( template )
     if registration_map is None:
-        registration_map = ants.registration( bbtr, x,
+        registration_map = ants.registration(
+            bbtr,
+            ants.rank_intensity(x),
             "antsRegistrationSyNQuickRepro[a]",
             aff_iterations = (1500,500,0,0),
             random_seed=1 )
@@ -485,11 +345,11 @@ def deep_brain_parcellation(
     if verbose:
         print("Begin registration")
 
-    rig = ants.registration( template, target_image,
+    rig = ants.registration( template, ants.rank_intensity(target_image),
         "antsRegistrationSyNQuickRepro[a]",
         aff_iterations = (500,200,0,0),
         random_seed=1 )
-    rigi = rig['warpedmovout']
+    rigi = ants.apply_transforms( template, target_image, rig['fwdtransforms'])
 
     if verbose:
         print("Begin DKT")
@@ -562,9 +422,9 @@ def deep_hippo(
     avgleft = img * 0
     avgright = img * 0
     for k in range(number_of_tries):
-        rig = ants.registration( template, img,
+        rig = ants.registration( template, ants.rank_intensity(img),
             "antsRegistrationSyNQuickRepro[a]", random_seed=k )
-        rigi = rig['warpedmovout']
+        rigi = ants.apply_transforms( template, x, rig['fwdtransforms'] )
         hipp = antspynet.hippmapp3r_segmentation( rigi, do_preprocessing=False )
         hippr = ants.apply_transforms(
             img,
@@ -599,7 +459,8 @@ def deep_hippo(
 def dap( x ):
     bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
     bbt = antspynet.brain_extraction( bbt, "t1" ) * bbt
-    qaff=ants.registration( bbt, x, "AffineFast", aff_metric='GC', random_seed=1 )
+    qaff=ants.registration( bbt, ants.rank_intensity(x), "AffineFast", aff_metric='GC', random_seed=1 )
+    qaff['warpedmovout'] = ants.apply_transforms( bbt, x, qaff['fwdtransforms'] )
     dapper = antspynet.deep_atropos( qaff['warpedmovout'], do_preprocessing=False )
     dappertox = ants.apply_transforms(
       x,
@@ -737,32 +598,48 @@ def hemi_reg(
         }
 
 
-def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0.1 ):
+def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrior, wmh_thresh=0.1 ):
     """
     provide measurements that may help decide if a given t1 image is likely
     to have hypointensity.
 
-    input_image: input image; bias-corrected, brain-extracted and denoised
+    x: input image; bias-corrected, brain-extracted and denoised
 
-    wmpriorIn: template-based tissue prior
+    xsegmentation: input image hard-segmentation results
+
+    xWMProbability: input image WM probability
+
+    template: template image
+
+    templateWMPrior: template tissue prior
 
     wmh_thresh: float used to threshold WMH probability and produce summary data
 
     returns:
+
         - wmh_summary: summary data frame based on thresholding WMH probability at wmh_thresh
-        - probability image denoting WMH probability; higher values indicate
+        - wmh_probability_image: probability image denoting WMH probability; higher values indicate
           that WMH is more likely
-        - an integral evidence that indicates the likelihood that the input
+        - wmh_evidence_of_existence: an integral evidence that indicates the likelihood that the input
             image content supports the presence of white matter hypointensity.
             greater than zero is supportive of WMH.  the higher, the more so.
             less than zero is evidence against.
+        - wmh_max_prob: max probability of wmh
+        - features: the features driving WMH predictons
 
     """
     mybig = [88,128,128]
     templatesmall = ants.resample_image( template, mybig, use_voxels=True )
-    qaff = ants.registration( x, templatesmall, 'SyN', aff_metric='GC', random_seed=1 )
+    qaff = ants.registration(
+        ants.rank_intensity(x),
+        ants.rank_intensity(templatesmall), 'SyN',
+        syn_sampling=2,
+        syn_metric='CC',
+        reg_iterations = [200,50,0,0],
+        aff_metric='GC', random_seed=1 )
     afftx = qaff['fwdtransforms'][1]
     templateWMPrior2x = ants.apply_transforms( x, templateWMPrior, qaff['fwdtransforms'] )
+    cerebrum = ants.threshold_image( xsegmentation, 2, 4 )
     realWM = ants.threshold_image( templateWMPrior2x , 0.9, math.inf )
     inimg = ants.rank_intensity( x )
     parcellateWMdnz = ants.kmeans_segmentation( inimg, 2, realWM, mrf=0.3 )['probabilityimages'][0]
@@ -790,7 +667,7 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0
     limg = ants.from_numpy( tf.squeeze( pp[0] ).numpy( ) )
     limg = ants.copy_image_info( templatesmall, limg )
     lesresam = ants.apply_transforms( x, limg, afftx, whichtoinvert=[False] )
-
+    # lesresam = lesresam * cerebrum
     rnmdl = antspynet.create_resnet_model_3d( inshape,
       number_of_classification_labels = 1,
       layers = (1,2,3),
@@ -812,3 +689,174 @@ def t1_hypointensity( x, xWMProbability, template, templateWMPrior, wmh_thresh=0
         "wmh_evidence_of_existence":float(qq),
         "wmh_max_prob":lesresam.max(),
         "features":myfeatures }
+
+
+
+
+
+
+def hierarchical( x, output_prefix, is_test=False, verbose=True ):
+    """
+    Default processing for a T1-weighted image.  See README.
+
+    Arguments
+    ---------
+    x : T1-weighted neuroimage antsImage
+
+    output_prefix: string directory and prefix
+
+    is_test: boolean ( parameters to run more quickly but with low quality )
+
+    verbose: boolean
+
+    Returns
+    -------
+    dataframes and associated derived data
+
+        - brain_n4_dnz : extracted brain denoised and bias corrected
+        - brain_extraction : brain mask
+        - rbp:  random basis projection results
+        - left_right : left righ hemisphere segmentation
+        - dkt_parc : dictionary object containing segmentation labels
+        - registration : dictionary object containing registration results
+        - hippLR : dictionary object containing hippocampus results
+        - white_matter_hypointensity : dictionary object containing WMH results
+        - wm_tractsL  : white matter tracts, left
+        - wm_tractsR  : white matter tracts, right
+        - dataframes : summary data frames
+
+    """
+    if verbose:
+        print("Read")
+    tfn = get_data('T_template0', target_extension='.nii.gz' )
+    tfnw = get_data('T_template0_WMP', target_extension='.nii.gz' )
+    tlrfn = get_data('T_template0_LR', target_extension='.nii.gz' )
+    bfn = antspynet.get_antsxnet_data( "croppedMni152" )
+
+    ##### read images and do simple bxt ops
+    templatea = ants.image_read( tfn )
+    if verbose:
+        print("bxt")
+    templatea = ( templatea * antspynet.brain_extraction( templatea, 't1' ) ).iMath( "Normalize" )
+    templateawmprior = ants.image_read( tfnw )
+    templatealr = ants.image_read( tlrfn )
+    templateb = ants.image_read( bfn )
+    templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
+    imgbxt = brain_extraction( x )
+    img = x * imgbxt
+
+    if verbose:
+        print("rbp")
+
+    # this is an unbiased method for identifying predictors that can be used to
+    # rank / sort data into clusters, some of which may be associated
+    # with outlierness or low-quality data
+    templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
+    rbp = random_basis_projection( img, templatesmall )
+
+
+    if verbose:
+        print("hemi")
+
+    # assuming data is reasonable quality, we should proceed with the rest ...
+    mylr = label_hemispheres( img, templatea, templatealr )
+
+    if verbose:
+        print("intensity")
+
+    ##### intensity modifications
+    img = ants.iMath( img, "Normalize" )
+    img = ants.denoise_image( img, imgbxt, noise_model='Rician')
+    img = ants.n4_bias_field_correction( img ).iMath("Normalize")
+
+    # optional - quick look at result
+    ants.plot(img,axis=2,ncol=8,nslices=24,
+        filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
+
+    if verbose:
+        print("parcellation")
+
+    ##### hierarchical labeling
+    myparc = deep_brain_parcellation( img, templateb,
+        do_cortical_propagation = not is_test, verbose=False )
+
+    ##### accumulate data into data frames
+    hemi = map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
+    tissue = map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
+    dktl = map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
+    dktp = map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
+    dktc = None
+    if not is_test:
+        dktc = map_segmentation_to_dataframe( "dkt", myparc['dkt_cortex'] )
+
+    if verbose:
+        print("WMH")
+
+    ##### below here are more exploratory nice to have outputs
+    myhypo = t1_hypointensity(
+        img,
+        myparc['tissue_segmentation'], # segmentation
+        myparc['tissue_probabilities'][3], # wm posteriors
+        templatea,
+        templateawmprior )
+
+    if verbose:
+        print("registration")
+
+    ##### traditional deformable registration as a high-resolution complement to above
+    reg = hemi_reg(
+        input_image = img,
+        input_image_tissue_segmentation = myparc['tissue_segmentation'],
+        input_image_hemisphere_segmentation = mylr,
+        input_template=templatea,
+        input_template_hemisphere_labels=templatealr,
+        output_prefix = output_prefix + "_SYN",
+        is_test=is_test )
+
+    if verbose:
+        print("wm tracts")
+
+    ##### how to use the hemi-reg output to generate any roi value from a template roi
+    wm_tracts = ants.image_read( get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
+    wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
+      interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
+    wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
+      interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
+    wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
+    wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
+
+    if verbose:
+        print("hippocampus")
+
+    ##### specialized labeling for hippocampus
+    ntries = 10
+    if is_test:
+        ntries = 1
+    hippLR = deep_hippo( img, templateb, ntries )
+
+    mydataframes = {
+        "hemispheres":hemi,
+        "tissues":tissue,
+        "dktlobes":dktl,
+        "dktregions":dktp,
+        "dktcortex":dktc,
+        "wmtracts_left":wmtdfL,
+        "wmtracts_right":wmtdfR,
+        "wmh":myhypo['wmh_summary']
+        }
+
+    outputs = {
+        "brain_n4_dnz": img,
+        "brain_extraction": imgbxt,
+        "rbp": rbp,
+        "left_right": mylr,
+        "dkt_parc": myparc,
+        "registration":reg,
+        "hippLR":hippLR,
+        "white_matter_hypointensity":myhypo,
+        "wm_tractsL":wm_tractsL,
+        "wm_tractsR":wm_tractsR,
+        "dataframes": mydataframes
+    }
+
+    return outputs
