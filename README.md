@@ -34,6 +34,8 @@ or install via `pip install antspyt1w`
 
 - deformable registration with robust and repeatable parameters
 
+- registration-based labeling of major white matter tracts
+
 - helpers that organize and annotate segmentation variables into data frames
 
 - hypothalamus segmentation *FIXME/TODO*
