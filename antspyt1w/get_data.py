@@ -635,16 +635,17 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
         ants.rank_intensity(templatesmall), 'SyN',
         syn_sampling=2,
         syn_metric='CC',
-        reg_iterations = [200,50,0,0],
+        reg_iterations = [25,15,0,0],
         aff_metric='GC', random_seed=1 )
     afftx = qaff['fwdtransforms'][1]
     templateWMPrior2x = ants.apply_transforms( x, templateWMPrior, qaff['fwdtransforms'] )
     cerebrum = ants.threshold_image( xsegmentation, 2, 4 )
-    realWM = ants.threshold_image( templateWMPrior2x , 0.9, math.inf )
+    realWM = ants.threshold_image( templateWMPrior2x , 0.1, math.inf )
     inimg = ants.rank_intensity( x )
     parcellateWMdnz = ants.kmeans_segmentation( inimg, 2, realWM, mrf=0.3 )['probabilityimages'][0]
     x2template = ants.apply_transforms( templatesmall, x, afftx, whichtoinvert=[True] )
-    parcellateWMdnz2template = ants.apply_transforms( templatesmall, parcellateWMdnz, afftx, whichtoinvert=[True] )
+    parcellateWMdnz2template = ants.apply_transforms( templatesmall,
+      cerebrum * parcellateWMdnz, afftx, whichtoinvert=[True] )
     # features = rank+dnz-image, lprob, wprob, wprior at mybig resolution
     f1 = x2template.numpy()
     f2 = parcellateWMdnz2template.numpy()
