@@ -100,12 +100,6 @@ testingClass.assertAlmostEqual(
     float( wmtdfL['VolumeInMillimeters'][1]/10000 ),
     float( 19825.0/10000 ), 4, "wmtdfL volume not close enough")
 
-##### specialized labeling for hippocampus
-hippLR = antspyt1w.deep_hippo( img, templateb, 1 )
-testingClass.assertAlmostEqual(
-    float( hippLR['HLStats']['VolumeInMillimeters'][0]/20000.0 ),
-    float( 2822.00/20000.0 ), 2, "HLStats volume not close enough")
-
 ##### below here are more exploratory nice to have outputs
 myhypo = antspyt1w.t1_hypointensity( img,
   myparc['tissue_segmentation'],
@@ -116,6 +110,13 @@ myhypo = antspyt1w.t1_hypointensity( img,
 testingClass.assertAlmostEqual(
     float( myhypo['wmh_summary']['Value'][1]  * 0.0001 ),
     float( 12318.5093207285 * 0.0001), 2, "wmh_summary integral not close enough")
+
+
+##### specialized labeling for hippocampus
+hippLR = antspyt1w.deep_hippo( img, templateb, 1 )
+testingClass.assertAlmostEqual(
+    float( hippLR['HLStats']['VolumeInMillimeters'][0]/20000.0 ),
+    float( 2822.00/20000.0 ), 2, "HLStats volume not close enough")
 
 temp_dir.cleanup()
 

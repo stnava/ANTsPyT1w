@@ -424,7 +424,7 @@ def deep_hippo(
     for k in range(number_of_tries):
         rig = ants.registration( template, ants.rank_intensity(img),
             "antsRegistrationSyNQuickRepro[a]", random_seed=k )
-        rigi = ants.apply_transforms( template, x, rig['fwdtransforms'] )
+        rigi = ants.apply_transforms( template, img, rig['fwdtransforms'] )
         hipp = antspynet.hippmapp3r_segmentation( rigi, do_preprocessing=False )
         hippr = ants.apply_transforms(
             img,
