@@ -33,10 +33,10 @@ img = img * imgbxt
 # rank / sort data into clusters, some of which may be associated
 # with outlierness or low-quality data
 templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
-rbp = antspyt1w.random_basis_projection( img, templatesmall, 10 )
+rbp = antspyt1w.random_basis_projection( img, templatesmall  )
 testingClass.assertAlmostEqual(
     float( rbp['RandBasisProj01'] ),
-    float( -0.3695626974439423 ), 5, "RBP result not close enough")
+    float( -0.4285278603876295 ), 5, "RBP result not close enough")
 
 # assuming data is reasonable quality, we should proceed with the rest ...
 mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
