@@ -262,10 +262,6 @@ def hierarchical( x, output_prefix, verbose=True ):
     # assuming data is reasonable quality, we should proceed with the rest ...
     mylr = label_hemispheres( img, templatea, templatealr )
 
-    # optional - quick look at result
-    ants.plot(img,axis=2,ncol=8,nslices=24,
-        filename = output_prefix + "_brain_extraction_view.png" )
-
     if verbose:
         print("intensity")
 
@@ -273,6 +269,10 @@ def hierarchical( x, output_prefix, verbose=True ):
     img = ants.iMath( img, "Normalize" )
     img = ants.denoise_image( img, imgbxt, noise_model='Rician')
     img = ants.n4_bias_field_correction( img ).iMath("Normalize")
+
+    # optional - quick look at result
+    ants.plot(img,axis=2,ncol=8,nslices=24,
+        filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
 
     if verbose:
         print("parcellation")
@@ -368,7 +368,7 @@ def brain_extraction( x ):
     return bxt
 
 
-def label_hemispheres( x, template, templateLR ):
+def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     """
     quick somewhat noisy registration solution to hemisphere labeling. typically
     we label left as 1 and right as 2.
@@ -379,8 +379,15 @@ def label_hemispheres( x, template, templateLR ):
 
     templateLR: a segmentation image of template hemispheres
 
+    reg_iterations: reg_iterations for ants.registration
+
     """
-    reg = ants.registration( x, template, 'SyN', random_seed = 1 )
+    reg = ants.registration( x, template, 'SyN',
+        aff_metric='GC',
+        syn_metric='CC',
+        syn_sampling=2,
+        reg_iterations=reg_iterations,
+        random_seed = 1 )
     return( ants.apply_transforms( x, templateLR, reg['fwdtransforms'],
         interpolator='genericLabel') )
 
