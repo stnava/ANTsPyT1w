@@ -253,14 +253,14 @@ def hierarchical( x, output_prefix, verbose=True ):
     # rank / sort data into clusters, some of which may be associated
     # with outlierness or low-quality data
     templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
-    rbp = antspyt1w.random_basis_projection( img, templatesmall )
+    rbp = random_basis_projection( img, templatesmall )
 
 
     if verbose:
         print("hemi")
 
     # assuming data is reasonable quality, we should proceed with the rest ...
-    mylr = antspyt1w.label_hemispheres( img, templatea, templatealr )
+    mylr = label_hemispheres( img, templatea, templatealr )
 
     # optional - quick look at result
     ants.plot(img,axis=2,ncol=8,nslices=24,
@@ -278,20 +278,20 @@ def hierarchical( x, output_prefix, verbose=True ):
         print("parcellation")
 
     ##### hierarchical labeling
-    myparc = antspyt1w.deep_brain_parcellation( img, templateb,
+    myparc = deep_brain_parcellation( img, templateb,
         do_cortical_propagation=True, verbose=False )
 
     ##### accumulate data into data frames
-    hemi = antspyt1w.map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
-    tissue = antspyt1w.map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
-    dktl = antspyt1w.map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
-    dktp = antspyt1w.map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
+    hemi = map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
+    tissue = map_segmentation_to_dataframe( "tissues", myparc['tissue_segmentation'] )
+    dktl = map_segmentation_to_dataframe( "lobes", myparc['dkt_lobes'] )
+    dktp = map_segmentation_to_dataframe( "dkt", myparc['dkt_parcellation'] )
 
     if verbose:
         print("registration")
 
     ##### traditional deformable registration as a high-resolution complement to above
-    reg = antspyt1w.hemi_reg(
+    reg = hemi_reg(
         input_image = img,
         input_image_tissue_segmentation = myparc['tissue_segmentation'],
         input_image_hemisphere_segmentation = mylr,
@@ -304,25 +304,25 @@ def hierarchical( x, output_prefix, verbose=True ):
         print("wm tracts")
 
     ##### how to use the hemi-reg output to generate any roi value from a template roi
-    wm_tracts = ants.image_read( antspyt1w.get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
+    wm_tracts = ants.image_read( get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
     wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
       interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
     wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
       interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
-    wmtdfL = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
-    wmtdfR = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
+    wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
+    wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
 
     if verbose:
         print("hippocampus")
 
     ##### specialized labeling for hippocampus
-    hippLR = antspyt1w.deep_hippo( img, templateb )
+    hippLR = deep_hippo( img, templateb )
 
     if verbose:
         print("WMH")
 
     ##### below here are more exploratory nice to have outputs
-    myhypo = antspyt1w.t1_hypointensity( img,
+    myhypo = t1_hypointensity( img,
       myparc['tissue_probabilities'][3], # wm posteriors
       templatea,
       templateawmprior )
