@@ -696,7 +696,7 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
 
 
 
-def hierarchical( x, output_prefix, is_test=False, verbose=True ):
+def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -705,6 +705,9 @@ def hierarchical( x, output_prefix, is_test=False, verbose=True ):
     x : T1-weighted neuroimage antsImage
 
     output_prefix: string directory and prefix
+
+    do_registration: boolean - set to False to skip registration results which
+      will be faster but skip some results
 
     is_test: boolean ( parameters to run more quickly but with low quality )
 
@@ -809,26 +812,30 @@ def hierarchical( x, output_prefix, is_test=False, verbose=True ):
         print("registration")
 
     ##### traditional deformable registration as a high-resolution complement to above
-    reg = hemi_reg(
-        input_image = img,
-        input_image_tissue_segmentation = myparc['tissue_segmentation'],
-        input_image_hemisphere_segmentation = mylr,
-        input_template=templatea,
-        input_template_hemisphere_labels=templatealr,
-        output_prefix = output_prefix + "_SYN",
-        is_test=is_test )
-
-    if verbose:
-        print("wm tracts")
-
-    ##### how to use the hemi-reg output to generate any roi value from a template roi
-    wm_tracts = ants.image_read( get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
-    wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
-      interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
-    wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
-      interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
-    wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
-    wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
+    wm_tractsL = None
+    wm_tractsR = None
+    wmtdfL = None
+    wmtdfR = None
+    reg = None
+    if do_registration is True:
+        reg = hemi_reg(
+            input_image = img,
+            input_image_tissue_segmentation = myparc['tissue_segmentation'],
+            input_image_hemisphere_segmentation = mylr,
+            input_template=templatea,
+            input_template_hemisphere_labels=templatealr,
+            output_prefix = output_prefix + "_SYN",
+            is_test=is_test )
+        if verbose:
+            print("wm tracts")
+        ##### how to use the hemi-reg output to generate any roi value from a template roi
+        wm_tracts = ants.image_read( get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
+        wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
+          interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
+        wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
+          interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
+        wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
+        wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
 
     if verbose:
         print("hippocampus")
