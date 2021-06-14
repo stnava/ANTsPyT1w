@@ -572,10 +572,10 @@ def hemi_reg(
     ants.image_write(synR['warpedmovout'], output_prefix + "right_hemi_reg.nii.gz" )
 
     fignameL = output_prefix + "left_hemi_reg.png"
-    ants.plot(synL['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameL)
+    ants.plot(synL['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameL, black_bg=False, crop=True )
 
     fignameR = output_prefix + "right_hemi_reg.png"
-    ants.plot(synR['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameR)
+    ants.plot(synR['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameR, black_bg=False, crop=True )
 
     lhjac = ants.create_jacobian_determinant_image(
         synL['warpedmovout'],
@@ -771,7 +771,7 @@ def hierarchical( x, output_prefix, is_test=False, verbose=True ):
     img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
     # optional - quick look at result
-    ants.plot(img,axis=2,ncol=8,nslices=24,
+    ants.plot(img,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
         filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
 
     if verbose:
@@ -789,6 +789,10 @@ def hierarchical( x, output_prefix, is_test=False, verbose=True ):
     dktc = None
     if not is_test:
         dktc = map_segmentation_to_dataframe( "dkt", myparc['dkt_cortex'] )
+
+    ants.plot( img, myparc['tissue_segmentation'], axis=2, nslices=21, ncol=7,
+        alpha=0.6, filename=output_prefix + "_seg.png",
+        crop=True, black_bg=False )
 
     if verbose:
         print("WMH")
