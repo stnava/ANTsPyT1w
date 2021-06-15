@@ -29,7 +29,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=15, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=16, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
