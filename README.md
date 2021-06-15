@@ -46,6 +46,16 @@ the two most time-consuming processes are hippocampus-specific segentation
 depending on your available computational resources and the data.  both
 could be made computationally cheaper at the cost of accuracy/reliability.
 
+# first time setup
+
+```python
+import antspyt1w
+antspyt1w.get_data()
+```
+
+NOTE: `get_data` has a `force_download` option to make sure the latest
+package data is installed.
+
 # example processing
 
 ```python

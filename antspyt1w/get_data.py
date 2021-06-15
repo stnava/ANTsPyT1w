@@ -29,7 +29,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=16, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=18, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -758,24 +758,23 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
     templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
     rbp = random_basis_projection( img, templatesmall )
 
+    if verbose:
+        print("intensity")
+
+    ##### intensity modifications
+    img = ants.iMath( img, "Normalize" ) * 255.0
+    img = ants.denoise_image( img, imgbxt, noise_model='Gaussian')
+    img = ants.n4_bias_field_correction( img ).iMath("Normalize")
+
+    # optional - quick look at result
+    ants.plot(img,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
+        filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
 
     if verbose:
         print("hemi")
 
     # assuming data is reasonable quality, we should proceed with the rest ...
     mylr = label_hemispheres( img, templatea, templatealr )
-
-    if verbose:
-        print("intensity")
-
-    ##### intensity modifications
-    img = ants.iMath( img, "Normalize" )
-    img = ants.denoise_image( img, imgbxt, noise_model='Rician')
-    img = ants.n4_bias_field_correction( img ).iMath("Normalize")
-
-    # optional - quick look at result
-    ants.plot(img,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
-        filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
 
     if verbose:
         print("parcellation")
