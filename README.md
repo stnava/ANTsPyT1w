@@ -41,6 +41,11 @@ or install via `pip install antspyt1w`
 - hypothalamus segmentation *FIXME/TODO*
 
 
+the two most time-consuming processes are hippocampus-specific segentation
+(because it uses augmentation) and registration.  both take 10-20 minutes
+depending on your available computational resources and the data.  both
+could be made computationally cheaper at the cost of accuracy/reliability.
+
 # example processing
 
 ```python
@@ -71,6 +76,12 @@ myresults = antspyt1w.hierarchical( img, output_prefix = '/tmp/XXX' )
 
 ```
 
+An example "full study" (at small scale) is illustrated in `~/.antspyt1w/run_dlbs.py`
+which demonstrates/comments on:
+- how to aggregate dataframes
+- how to pivot to wide format
+- how to join with a demographic/metadata file
+- visualizing basic outcomes.
 
 ## to publish a release
 
