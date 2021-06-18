@@ -475,8 +475,9 @@ def dap( x ):
 def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, output_prefix ):
     ihemi=img*ants.threshold_image( hemiS, whichHemi, whichHemi )
     themi=template*ants.threshold_image( templateHemi, whichHemi, whichHemi )
+    loquant = np.quantile(themi.numpy(),0.01)+1e-6 # identify background value and add epsilon to it
     hemicropmask = ants.threshold_image( templateHemi *
-        ants.threshold_image( themi, 1e-3, math.inf),
+        ants.threshold_image( themi, loquant, math.inf),
         whichHemi, whichHemi ).iMath("MD",padder)
     tcrop = ants.crop_image( themi, hemicropmask  )
     syn = ants.registration( tcrop, ihemi, 'SyN', aff_metric='GC',
