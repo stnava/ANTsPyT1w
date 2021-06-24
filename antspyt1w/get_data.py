@@ -528,7 +528,6 @@ def hemi_reg(
 
     tdap = dap( input_template )
     tonlycerebrum = ants.threshold_image( tdap, 2, 4 )
-    maskinds=[2,3,4,5]
     template = ants.rank_intensity( input_template )
 
     regsegits=[200,200,20]
