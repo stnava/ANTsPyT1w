@@ -80,8 +80,9 @@ def get_data( name=None, force_download=False, version=19, target_extension='.cs
         target_file_name = "14766102.zip"
         target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
             cache_subdir=DATA_PATH, extract = True )
+        os.remove( DATA_PATH + target_file_name )
 
-    if force_download == True :
+    if force_download:
         download_data( version = version )
 
 
