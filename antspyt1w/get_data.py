@@ -572,10 +572,10 @@ def hemi_reg(
     ants.image_write(synL['warpedmovout'], output_prefix + "left_hemi_reg.nii.gz" )
     ants.image_write(synR['warpedmovout'], output_prefix + "right_hemi_reg.nii.gz" )
 
-    fignameL = output_prefix + "left_hemi_reg.png"
+    fignameL = output_prefix + "_left_hemi_reg.png"
     ants.plot(synL['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameL, black_bg=False, crop=True )
 
-    fignameR = output_prefix + "right_hemi_reg.png"
+    fignameR = output_prefix + "_right_hemi_reg.png"
     ants.plot(synR['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameR, black_bg=False, crop=True )
 
     lhjac = ants.create_jacobian_determinant_image(
@@ -593,7 +593,9 @@ def hemi_reg(
     ants.image_write( rhjac, output_prefix+'right_hemi_jacobian.nii.gz' )
     return {
         "synL":synL,
+        "synLpng":fignameL,
         "synR":synR,
+        "synRpng":fignameR,
         "lhjac":lhjac,
         "rhjac":rhjac
         }
@@ -768,8 +770,9 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
     img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
     # optional - quick look at result
+    bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
     ants.plot(img,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
-        filename = output_prefix + "_brain_extraction_dnz_n4_view.png" )
+        filename = bxt_png )
 
     if verbose:
         print("hemi")
@@ -793,8 +796,9 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
     if not is_test:
         dktc = map_segmentation_to_dataframe( "dkt", myparc['dkt_cortex'] )
 
+    tissue_seg_png = output_prefix + "_seg.png"
     ants.plot( img, myparc['tissue_segmentation'], axis=2, nslices=21, ncol=7,
-        alpha=0.6, filename=output_prefix + "_seg.png",
+        alpha=0.6, filename=tissue_seg_png,
         crop=True, black_bg=False )
 
     if verbose:
@@ -859,7 +863,9 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
 
     outputs = {
         "brain_n4_dnz": img,
+        "brain_n4_dnz_png": bxt_png,
         "brain_extraction": imgbxt,
+        "tissue_seg_png": tissue_seg_png,
         "rbp": rbp,
         "left_right": mylr,
         "dkt_parc": myparc,
