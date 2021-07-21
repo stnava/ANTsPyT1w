@@ -496,6 +496,7 @@ def hemi_reg(
     input_template_hemisphere_labels,
     output_prefix,
     padding=10,
+    labels_to_register = [2,3,4,5],
     is_test=False ):
     """
     hemisphere focused registration that will produce jacobians and figures
@@ -519,16 +520,20 @@ def hemi_reg(
 
     padding: number of voxels to pad images, needed for diffzero
 
+    labels_to_register: list of integer segmentation labels to use to define
+    the tissue types / regions of the brain to register.
+
     is_test: boolean. this function can be long running by default. this would
     help testing more quickly by running fewer iterations.
 
     """
 
     img = ants.rank_intensity( input_image )
-    ionlycerebrum = ants.threshold_image( input_image_tissue_segmentation, 2, 4 )
+    ionlycerebrum = ants.mask_image( input_image_tissue_segmentation,
+        input_image_tissue_segmentation, labels_to_register, 1 )
 
     tdap = dap( input_template )
-    tonlycerebrum = ants.threshold_image( tdap, 2, 4 )
+    tonlycerebrum = ants.mask_image( tdap, tdap, labels_to_register, 1 )
     template = ants.rank_intensity( input_template )
 
     regsegits=[200,200,20]
@@ -697,9 +702,7 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
 
 
 
-
-
-def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose=True ):
+def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -709,8 +712,10 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
 
     output_prefix: string directory and prefix
 
-    do_registration: boolean - set to False to skip registration results which
-      will be faster but skip some results
+    labels_to_register: list of integer segmentation labels (of 1 to 6 as defined
+    by atropos: csf, gm, wm, dgm, brainstem, cerebellum) to define
+    the tissue types / regions of the brain to register.  set to None to
+    skip registration which will be faster but omit some results.
 
     is_test: boolean ( parameters to run more quickly but with low quality )
 
@@ -821,7 +826,7 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
     wmtdfL = None
     wmtdfR = None
     reg = None
-    if do_registration is True:
+    if labels_to_register is not None:
         reg = hemi_reg(
             input_image = img,
             input_image_tissue_segmentation = myparc['tissue_segmentation'],
@@ -829,6 +834,7 @@ def hierarchical( x, output_prefix, do_registration=True, is_test=False, verbose
             input_template=templatea,
             input_template_hemisphere_labels=templatealr,
             output_prefix = output_prefix + "_SYN",
+            labels_to_register = labels_to_register,
             is_test=is_test )
         if verbose:
             print("wm tracts")

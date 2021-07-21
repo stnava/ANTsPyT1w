@@ -91,7 +91,7 @@ reg = antspyt1w.hemi_reg(
 
 testingClass.assertAlmostEqual(
     float( reg['rhjac'].max() ),
-    float( 0.521503210067749 ), 4, "rhjac max not close enough")
+    float( 0.5157926082611084 ), 4, "rhjac max not close enough")
 
 ##### how to use the hemi-reg output to generate any roi value from a template roi
 wm_tracts = ants.image_read( antspyt1w.get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
@@ -101,7 +101,7 @@ wmtdfL = antspyt1w.map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL 
 
 testingClass.assertAlmostEqual(
     float( wmtdfL['VolumeInMillimeters'][1]/10000 ),
-    float( 19724.0/10000 ), 4, "wmtdfL volume not close enough")
+    float( 19321.0/10000 ), 4, "wmtdfL volume not close enough")
 
 ##### below here are more exploratory nice to have outputs
 myhypo = antspyt1w.t1_hypointensity( img,
