@@ -5,7 +5,7 @@ Get local ANTsPyT1w data
 __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'label_hemispheres','brain_extraction',
-    'hemi_reg','t1_hypointensity']
+    'hemi_reg', 'region_reg', 't1_hypointensity']
 
 from pathlib import Path
 import os
@@ -499,7 +499,7 @@ def hemi_reg(
     labels_to_register = [2,3,4,5],
     is_test=False ):
     """
-    hemisphere focused registration that will produce jacobians and figures
+    hemisphere focused registration that will produce jacobians and figures to
     support data inspection
 
     input_image: input image
@@ -603,6 +603,100 @@ def hemi_reg(
         "synRpng":fignameR,
         "lhjac":lhjac,
         "rhjac":rhjac
+        }
+
+
+
+def region_reg(
+    input_image,
+    input_image_tissue_segmentation,
+    input_image_region_segmentation,
+    input_template,
+    input_template_region_segmentation,
+    output_prefix,
+    padding=10,
+    labels_to_register = [2,3,4,5],
+    is_test=False ):
+    """
+    region focused registration that will produce jacobians and figures to
+    support data inspection.  region-defining images should be binary.
+
+    input_image: input image
+
+    input_image_tissue_segmentation: segmentation produced in ANTs style ie with
+    labels defined by atropos brain segmentation (1 to 6)
+
+    input_image_region_segmentation: a local region to register - binary.
+
+    input_template: template to which we register; prefer a population-specific
+    relatively high-resolution template instead of MNI or biobank.
+
+    input_template_region_segmentation: a segmentation image of template regions - binary.
+
+    output_prefix: a path and prefix for registration related outputs
+
+    padding: number of voxels to pad images, needed for diffzero
+
+    labels_to_register: list of integer segmentation labels to use to define
+    the tissue types / regions of the brain to register.
+
+    is_test: boolean. this function can be long running by default. this would
+    help testing more quickly by running fewer iterations.
+
+    """
+
+    img = ants.rank_intensity( input_image )
+    ionlycerebrum = ants.mask_image( input_image_tissue_segmentation,
+        input_image_tissue_segmentation, labels_to_register, 1 )
+
+    tdap = dap( input_template )
+    tonlycerebrum = ants.mask_image( tdap, tdap, labels_to_register, 1 )
+    template = ants.rank_intensity( input_template )
+
+    regsegits=[200,200,20]
+
+    # upsample the template if we are passing SR as input
+    if min(ants.get_spacing(img)) < 0.8:
+        regsegits=[200,200,200,20]
+        template = ants.resample_image( template, (0.5,0.5,0.5), interp_type = 0 )
+
+    if is_test:
+        regsegits=[8,0,0]
+
+    input_template_region_segmentation = ants.resample_image_to_target(
+        input_template_region_segmentation,
+        template,
+        interp_type='genericLabel',
+    )
+
+    # now do a region focused registration
+    synL = localsyn(
+        img=img*ionlycerebrum,
+        template=template*tonlycerebrum,
+        hemiS=input_image_region_segmentation,
+        templateHemi=input_template_region_segmentation,
+        whichHemi=1,
+        padder=padding,
+        iterations=regsegits,
+        output_prefix = output_prefix + "region_reg",
+    )
+
+    ants.image_write(synL['warpedmovout'], output_prefix + "region_reg.nii.gz" )
+
+    fignameL = output_prefix + "_region_reg.png"
+    ants.plot(synL['warpedmovout'],axis=2,ncol=8,nslices=24,filename=fignameL, black_bg=False, crop=True )
+
+    lhjac = ants.create_jacobian_determinant_image(
+        synL['warpedmovout'],
+        synL['fwdtransforms'][0],
+        do_log=1
+        )
+    ants.image_write( lhjac, output_prefix+'region_jacobian.nii.gz' )
+
+    return {
+        "synL":synL,
+        "synLpng":fignameL,
+        "lhjac":lhjac
         }
 
 

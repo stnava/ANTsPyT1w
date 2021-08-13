@@ -14,4 +14,5 @@ from .get_data import label_hemispheres
 from .get_data import brain_extraction
 from .get_data import deep_hippo
 from .get_data import hemi_reg
+from .get_data import region_reg
 from .get_data import t1_hypointensity
