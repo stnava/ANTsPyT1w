@@ -444,8 +444,10 @@ def deep_hippo(
     hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent")
 
     hippleftORlabels  = ants.label_geometry_measures(hippleft_bin, avgleft)
+    hippleftORlabels['Description'] = 'left hippocampus'
     hipprightORlabels  = ants.label_geometry_measures(hippright_bin, avgright)
-
+    hipprightORlabels['Description'] = 'right hippocampus'
+    
     labels = {
         'HLProb':avgleft,
         'HLBin':hippleft_bin,
