@@ -29,7 +29,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=20, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=21, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -447,7 +447,7 @@ def deep_hippo(
     hippleftORlabels['Description'] = 'left hippocampus'
     hipprightORlabels  = ants.label_geometry_measures(hippright_bin, avgright)
     hipprightORlabels['Description'] = 'right hippocampus'
-    
+
     labels = {
         'HLProb':avgleft,
         'HLBin':hippleft_bin,
