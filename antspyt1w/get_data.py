@@ -475,7 +475,8 @@ def dap( x ):
     return(  dappertox )
 
 # this function looks like it's for BF but it can be used for any local label pair
-def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, output_prefix ):
+def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations,
+    output_prefix, total_sigma=0.5 ):
     ihemi=img*ants.threshold_image( hemiS, whichHemi, whichHemi )
     themi=template*ants.threshold_image( templateHemi, whichHemi, whichHemi )
     loquant = np.quantile(themi.numpy(),0.01)+1e-6 # identify background value and add epsilon to it
@@ -485,7 +486,7 @@ def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations, 
     tcrop = ants.crop_image( themi, hemicropmask  )
     syn = ants.registration( tcrop, ihemi, 'SyN', aff_metric='GC',
         syn_metric='CC', syn_sampling=2, reg_iterations=iterations,
-        flow_sigma=3.0, total_sigma=0.50,
+        flow_sigma=3.0, total_sigma=total_sigma,
         verbose=False, outprefix = output_prefix, random_seed=1 )
     return syn
 
@@ -499,6 +500,7 @@ def hemi_reg(
     output_prefix,
     padding=10,
     labels_to_register = [2,3,4,5],
+    total_sigma=0.5,
     is_test=False ):
     """
     hemisphere focused registration that will produce jacobians and figures to
@@ -524,6 +526,8 @@ def hemi_reg(
 
     labels_to_register: list of integer segmentation labels to use to define
     the tissue types / regions of the brain to register.
+
+    total_sigma: scalar >= 0.0 ; higher means more constrained registration.
 
     is_test: boolean. this function can be long running by default. this would
     help testing more quickly by running fewer iterations.
@@ -564,6 +568,7 @@ def hemi_reg(
         padder=padding,
         iterations=regsegits,
         output_prefix = output_prefix + "left_hemi_reg",
+        total_sigma=total_sigma,
     )
     synR = localsyn(
         img=img*ionlycerebrum,
@@ -574,6 +579,7 @@ def hemi_reg(
         padder=padding,
         iterations=regsegits,
         output_prefix = output_prefix + "right_hemi_reg",
+        total_sigma=total_sigma,
     )
 
     ants.image_write(synL['warpedmovout'], output_prefix + "left_hemi_reg.nii.gz" )
@@ -618,6 +624,7 @@ def region_reg(
     output_prefix,
     padding=10,
     labels_to_register = [2,3,4,5],
+    total_sigma=0.5,
     is_test=False ):
     """
     region focused registration that will produce jacobians and figures to
@@ -641,6 +648,8 @@ def region_reg(
 
     labels_to_register: list of integer segmentation labels to use to define
     the tissue types / regions of the brain to register.
+
+    total_sigma: scalar >= 0.0 ; higher means more constrained registration.
 
     is_test: boolean. this function can be long running by default. this would
     help testing more quickly by running fewer iterations.
@@ -681,6 +690,7 @@ def region_reg(
         padder=padding,
         iterations=regsegits,
         output_prefix = output_prefix + "region_reg",
+        total_sigma=total_sigma,
     )
 
     ants.image_write(synL['warpedmovout'], output_prefix + "region_reg.nii.gz" )
