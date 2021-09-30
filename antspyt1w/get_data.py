@@ -548,6 +548,10 @@ def hemi_reg(
     if min(ants.get_spacing(img)) < 0.8:
         regsegits=[200,200,200,20]
         template = ants.resample_image( template, (0.5,0.5,0.5), interp_type = 0 )
+        tonlycerebrum = ants.resample_image_to_target( tonlycerebrum,
+            template,
+            interp_type='genericLabel',
+        )
 
     if is_test:
         regsegits=[8,0,0]
