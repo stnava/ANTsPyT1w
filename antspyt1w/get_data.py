@@ -1030,7 +1030,7 @@ def zoom_syn( target_image, template, template_segmentations,
     Returns
     -------
     dictionary
-        containing two lists of segmentation and registration results
+        containing segmentation and registration results in addition to cropping results
 
     Example
     -------
