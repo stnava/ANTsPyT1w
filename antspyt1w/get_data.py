@@ -1040,10 +1040,9 @@ def zoom_syn( target_image, template, template_segmentations,
     """
     croppertem = ants.iMath( template_segmentations[0], "MD", dilation )
     templatecrop = ants.crop_image( template, croppertem )
-    target_imageg = ants.apply_transforms( target_image,
+    cropper = ants.apply_transforms( target_image,
         template_segmentations[0], initial_registration['fwdtransforms'],
         interpolator='linear' ).threshold_image(0.5,1.e9)
-    cropper = ants.iMath( target_imageg, "MD", dilation )
     croplow = ants.crop_image( target_image,  cropper )
     synnerlow = ants.registration( croplow, templatecrop,
         'SyNOnly', gradStep = 0.20, regIterations = regIterations, randomSeed=1,
@@ -1056,7 +1055,7 @@ def zoom_syn( target_image, template, template_segmentations,
       orlist.append( target_imageg )
     return{
           'segmentations': orlist,
-          'registration':synnerlow,
+          'registration': synnerlow,
           'croppedimage': croplow,
           'croppingmask': cropper
           }
