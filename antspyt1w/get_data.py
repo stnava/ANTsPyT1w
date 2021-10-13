@@ -5,7 +5,7 @@ Get local ANTsPyT1w data
 __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'label_hemispheres','brain_extraction',
-    'hemi_reg', 'region_reg', 't1_hypointensity']
+    'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn']
 
 from pathlib import Path
 import os
@@ -998,3 +998,75 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
     }
 
     return outputs
+
+
+
+
+def zoom_syn( target_image_or, target_image_sr, template, template_segmentations,
+    dilation = 4,
+    regIterations = [25] ):
+    """
+    zoomed in syn - a hierarchical registration applied to a hierarchical segmentation
+
+    Default syn is followed up by a refined and focused high-resolution registration.
+    This is performed on the cropped image where the cropping region is determined
+    by the first segmentation in the template_segmentations list.  Segmentations
+    after the first one are assumed to exist as sub-regions of the first.  All
+    segmentations are assumed to be binary.
+
+    Arguments
+    ---------
+    target_image_or : ants image at original resolution
+
+    target_image_sr : ants image at super resolution - sr of the target_image_or
+
+    template : ants image template to be mapped to the target image
+
+    template_segmentations : list of binary segmentation images
+
+    dilation : morphological dilation amount applied to the first segmentation and used for cropping
+
+    regIterations : parameter passed to ants.registration
+
+    Returns
+    -------
+    dictionary
+        containing two lists of segmentation at OR and SR
+
+    Example
+    -------
+    >>> import ants
+    >>> xxx = antspyt1w.zoom_syn(  orb,  srb,  template, level2segs, dilation = 4 )
+    """
+    croppertem = ants.iMath( template_segmentations[0], "MD", dilation )
+    templatecrop = ants.crop_image( template, croppertem )
+    initreg = ants.registration( target_image_or, template,
+        "antsRegistrationSyNQuickRepro[s]",
+        verbose=False )
+    target_image_org = ants.apply_transforms( target_image_or, template_segmentations[0], initreg['fwdtransforms'],
+      interpolator='linear' ).threshold_image(0.5,1.e9)
+    cropper = ants.iMath( target_image_org, "MD", dilation )
+    cropperhi = ants.resample_image_to_target( cropper, target_image_sr, 'nearestNeighbor' )
+    croplow = ants.crop_image( target_image_or,  cropper )
+    crophi = ants.crop_image( target_image_sr,  cropperhi )
+    synnerlow = ants.registration( croplow, templatecrop,
+        'SyNOnly', gradStep = 0.20, regIterations = regIterations, randomSeed=1,
+        initialTransform = initreg['fwdtransforms'] )
+    synnerhi = ants.registration( crophi, templatecrop,
+        'SyNOnly', gradStep = 0.20, regIterations = regIterations, randomSeed=1,
+        initialTransform = initreg['fwdtransforms']  )
+    orlist = []
+    srlist = []
+    for jj in range(len(template_segmentations)):
+      target_image_org = ants.apply_transforms( target_image_or, template_segmentations[jj],
+        synnerlow['fwdtransforms'],
+        interpolator='linear' ).threshold_image(0.5,1e9)
+      orlist.append( target_image_org )
+      srbf = ants.apply_transforms( target_image_sr, template_segmentations[jj],
+        synnerhi['fwdtransforms'],
+        interpolator='linear' ).threshold_image(0.5,1e9)
+      srlist.append( srbf )
+    return{
+          'orlab': orlist,
+          'srlab': srlist
+          }
