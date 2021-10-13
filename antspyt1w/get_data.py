@@ -1039,11 +1039,12 @@ def zoom_syn( target_image, template, template_segmentations,
     >>> xxx = antspyt1w.zoom_syn(  orb,  template, level2segs, ireg )
     """
     croppertem = ants.iMath( template_segmentations[0], "MD", dilation )
+    templatecrop = ants.crop_image( template, croppertem )
     cropper = ants.apply_transforms( target_image,
         croppertem, initial_registration['fwdtransforms'],
         interpolator='linear' ).threshold_image(0.5,1.e9)
     croplow = ants.crop_image( target_image,  cropper )
-    synnerlow = ants.registration( croplow, template,
+    synnerlow = ants.registration( croplow, templatecrop,
         'SyNOnly', gradStep = 0.20, regIterations = regIterations, randomSeed=1,
         initialTransform = initial_registration['fwdtransforms'] )
     orlist = []
