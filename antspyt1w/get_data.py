@@ -1056,5 +1056,7 @@ def zoom_syn( target_image, template, template_segmentations,
       orlist.append( target_imageg )
     return{
           'segmentations': orlist,
-          'registration':synnerlow
+          'registration':synnerlow,
+          'croppedimage': croplow,
+          'croppingmask': cropper
           }
