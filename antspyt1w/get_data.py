@@ -514,7 +514,7 @@ def deep_mtl(t1):
                                invtransforms=registration['invtransforms'])
     t1_warped = registration['warpedmovout']
 
-    df = antspynet.deep_flash(t1_warped, do_preprocessing=False, verbose=True)
+    df = antspynet.deep_flash(t1_warped, do_preprocessing=False, verbose=verbose)
 
     probability_images = list()
     for i in range(len(df['probability_images'])):
