@@ -506,6 +506,22 @@ def deep_mtl(t1):
     verbose = False
 
     labels = (0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
+    label_descriptions = ['background',
+                          'left aLEC',
+                          'right aLEC',
+                          'left pMEC',
+                          'right pMEC',
+                          'left perirhinal',
+                          'right perirhinal',
+                          'left parahippocampal',
+                          'right parahippocampal',
+                          'left DG/CA3',
+                          'right DG/CA3',
+                          'left CA1',
+                          'right CA1',
+                          'left subiculum',
+                          'right subiculum'
+                          ]
 
     template = ants.image_read(antspynet.get_antsxnet_data("deepFlashTemplateT1SkullStripped"))
     registration = ants.registration(fixed=template, moving=t1,
@@ -537,7 +553,11 @@ def deep_mtl(t1):
     for i in range(len(labels)):
         relabeled_image[segmentation_image==i] = labels[i]
 
+    mtl_dataframe = ants.label_geometry_measures(relabeled_image)
+    mtl_dataframe.insert(1, "Description", label_descriptions[1:])
+
     deep_mtl_dictionary = {
+                          'mtl_summary':mtl_dataframe,
                           'mtl_segmentation':relabeled_image,
                           'mtl_probability_images':probability_images
                           }
