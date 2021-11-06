@@ -553,11 +553,11 @@ def deep_mtl(t1):
     for i in range(len(labels)):
         relabeled_image[segmentation_image==i] = labels[i]
 
-    mtl_dataframe = ants.label_geometry_measures(relabeled_image)
-    mtl_dataframe.insert(1, "Description", label_descriptions[1:])
+    mtl_description = pd.DataFrame(labels, columns=['Label'])
+    mtl_description.insert(1, "Description", label_descriptions)
 
     deep_mtl_dictionary = {
-                          'mtl_summary':mtl_dataframe,
+                          'mtl_description':mtl_description,
                           'mtl_segmentation':relabeled_image,
                           'mtl_probability_images':probability_images
                           }
