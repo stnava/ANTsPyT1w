@@ -4,7 +4,7 @@ Get local ANTsPyT1w data
 
 __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
-    'deep_brain_parcellation', 'label_hemispheres','brain_extraction',
+    'deep_brain_parcellation', 'deep_mtl', 'label_hemispheres','brain_extraction',
     'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn']
 
 from pathlib import Path
@@ -474,6 +474,95 @@ def dap( x ):
     )
     return(  dappertox )
 
+def deep_mtl(t1):
+
+    """
+    Hippocampal/Enthorhinal segmentation using "Deep Flash"
+
+    Perform hippocampal/entorhinal segmentation in T1 images using
+    labels from Mike Yassa's lab
+
+    https://faculty.sites.uci.edu/myassa/
+
+    The labeling is as follows:
+    Label 0 :  background
+    Label 5 :  left aLEC
+    Label 6 :  right aLEC
+    Label 7 :  left pMEC
+    Label 8 :  right pMEC
+    Label 9 :  left perirhinal
+    Label 10:  right perirhinal
+    Label 11:  left parahippocampal
+    Label 12:  right parahippocampal
+    Label 13:  left DG/CA3
+    Label 14:  right DG/CA3
+    Label 15:  left CA1
+    Label 16:  right CA1
+    Label 17:  left subiculum
+    Label 18:  right subiculum
+
+    """
+
+    verbose = False
+
+    labels = (0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18)
+    label_descriptions = ['background',
+                          'left aLEC',
+                          'right aLEC',
+                          'left pMEC',
+                          'right pMEC',
+                          'left perirhinal',
+                          'right perirhinal',
+                          'left parahippocampal',
+                          'right parahippocampal',
+                          'left DG/CA3',
+                          'right DG/CA3',
+                          'left CA1',
+                          'right CA1',
+                          'left subiculum',
+                          'right subiculum'
+                          ]
+
+    template = ants.image_read(antspynet.get_antsxnet_data("deepFlashTemplateT1SkullStripped"))
+    registration = ants.registration(fixed=template, moving=t1,
+        type_of_transform="antsRegistrationSyNQuickRepro[a]", verbose=verbose)
+    template_transforms = dict(fwdtransforms=registration['fwdtransforms'],
+                               invtransforms=registration['invtransforms'])
+    t1_warped = registration['warpedmovout']
+
+    df = antspynet.deep_flash(t1_warped, do_preprocessing=False, verbose=verbose)
+
+    probability_images = list()
+    for i in range(len(df['probability_images'])):
+        probability_image = ants.apply_transforms(fixed=t1,
+                                                  moving=df['probability_images'][i],
+                                                  transformlist=template_transforms['invtransforms'],
+                                                  whichtoinvert=[True],
+                                                  interpolator="linear",
+                                                  verbose=verbose)
+        probability_images.append(probability_image)
+
+    image_matrix = ants.image_list_to_matrix(probability_images[1:(len(probability_images))], t1 * 0 + 1)
+    background_foreground_matrix = np.stack([ants.image_list_to_matrix([probability_images[0]], t1 * 0 + 1),
+                                            np.expand_dims(np.sum(image_matrix, axis=0), axis=0)])
+    foreground_matrix = np.argmax(background_foreground_matrix, axis=0)
+    segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1) * foreground_matrix
+    segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), t1 * 0 + 1)[0]
+
+    relabeled_image = ants.image_clone(segmentation_image)
+    for i in range(len(labels)):
+        relabeled_image[segmentation_image==i] = labels[i]
+
+    mtl_description = pd.DataFrame(labels, columns=['Label'])
+    mtl_description.insert(1, "Description", label_descriptions)
+
+    deep_mtl_dictionary = {
+                          'mtl_description':mtl_description,
+                          'mtl_segmentation':relabeled_image,
+                          'mtl_probability_images':probability_images
+                          }
+    return(deep_mtl_dictionary)
+
 # this function looks like it's for BF but it can be used for any local label pair
 def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations,
     output_prefix, total_sigma=0.5 ):
@@ -813,9 +902,6 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
         "wmh_max_prob":lesresam.max(),
         "features":myfeatures }
 
-
-
-
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
@@ -846,6 +932,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         - dkt_parc : dictionary object containing segmentation labels
         - registration : dictionary object containing registration results
         - hippLR : dictionary object containing hippocampus results
+        - medial_temporal_lobe : dictionary object containing deep_flash (medial temporal lobe parcellation) results
         - white_matter_hypointensity : dictionary object containing WMH results
         - wm_tractsL  : white matter tracts, left
         - wm_tractsR  : white matter tracts, right
@@ -970,6 +1057,12 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         ntries = 1
     hippLR = deep_hippo( img, templateb, ntries )
 
+    if verbose:
+        print("medial temporal lobe")
+
+    ##### deep_flash medial temporal lobe parcellation
+    deep_flash = deep_mtl(img)
+
     mydataframes = {
         "hemispheres":hemi,
         "tissues":tissue,
@@ -991,6 +1084,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "dkt_parc": myparc,
         "registration":reg,
         "hippLR":hippLR,
+        "medial_temporal_lobe":deep_flash,
         "white_matter_hypointensity":myhypo,
         "wm_tractsL":wm_tractsL,
         "wm_tractsR":wm_tractsR,

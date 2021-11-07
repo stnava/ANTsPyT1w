@@ -10,6 +10,7 @@ from .get_data import random_basis_projection
 from .get_data import hierarchical
 from .get_data import deep_brain_parcellation
 from .get_data import deep_tissue_segmentation
+from .get_data import deep_mtl
 from .get_data import label_hemispheres
 from .get_data import brain_extraction
 from .get_data import deep_hippo
