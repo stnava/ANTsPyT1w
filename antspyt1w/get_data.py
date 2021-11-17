@@ -5,7 +5,8 @@ Get local ANTsPyT1w data
 __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'deep_mtl', 'label_hemispheres','brain_extraction',
-    'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn']
+    'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn',
+    'map_intensity_to_dataframe']
 
 from pathlib import Path
 import os
@@ -145,6 +146,34 @@ def map_segmentation_to_dataframe( segmentation_type, segmentation_image ):
     mydf_fn = get_data( segmentation_type )
     mydf = pd.read_csv( mydf_fn )
     mylgo = ants.label_geometry_measures( segmentation_image )
+    return pd.merge( mydf, mylgo, how='left', on=["Label"] )
+
+def map_intensity_to_dataframe( segmentation_type, intensity_image, segmentation_image ):
+    """
+    Match itensity values within segmentation labels to its appropriate data frame.
+
+    Arguments
+    ---------
+    segmentation_type : string
+        name of segmentation_type data frame to retrieve
+        Options:
+            - see get_data function or ~/.antspyt1w folder
+            - e.g. lobes
+
+    intensity_image : antsImage with intensity values to summarize
+
+    segmentation_image : antsImage with same values (or mostly the same) as are
+        expected by segmentation_type
+
+    Returns
+    -------
+    dataframe
+
+    """
+    mydf_fn = get_data( segmentation_type )
+    mydf = pd.read_csv( mydf_fn )
+    mylgo = ants.label_stats( intensity_image, segmentation_image )
+    mylgo = mylgo.rename(columns = {'LabelValue':'Label'})
     return pd.merge( mydf, mylgo, how='left', on=["Label"] )
 
 
