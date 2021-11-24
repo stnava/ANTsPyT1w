@@ -1123,6 +1123,39 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
     return outputs
 
 
+def trim_segmentation_by_distance( segmentation, which_label, distance ):
+    """
+    trim a segmentation by the distance provided by the user. computes a distance
+    transform from the segmentation - treated as binary - and trims the target
+    label by that distance.
+
+    Arguments
+    ---------
+    segmentation : ants image segmentation
+
+    which_label : the label to trim
+
+    distance : float distance value
+
+    Returns
+    -------
+    trimmed_segmentation
+
+    Example
+    -------
+    >>> import ants
+    >>> img = ants.image_read( ants.get_data( 'r16' ) )
+    >>> seg = ants.threshold_image( img, "Otsu", 3 )
+    >>> tseg = antspyt1w.trim_segmentation_by_distance( seg, 1, 10 )
+    """
+    bseg = ants.threshold_image( segmentation, 1, segmentation.max() )
+    dist = ants.iMath( bseg, "MaurerDistance" ) * (-1.0)
+    disttrim = ants.threshold_image( dist, distance, dist.max() )
+    tarseg = ants.threshold_image( segmentation, which_label, which_label ) * disttrim
+    segmentationtrim = segmentation.clone()
+    segmentationtrim[ segmentation == which_label ] = 0
+    return segmentationtrim + tarseg * which_label
+
 
 
 def zoom_syn( target_image, template, template_segmentations,

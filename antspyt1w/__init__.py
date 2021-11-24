@@ -19,3 +19,4 @@ from .get_data import region_reg
 from .get_data import t1_hypointensity
 from .get_data import zoom_syn
 from .get_data import map_intensity_to_dataframe
+from .get_data import trim_segmentation_by_distance
