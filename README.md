@@ -1,5 +1,7 @@
 # ANTsPyT1w
 
+[![CircleCI](https://circleci.com/gh/stnava/ANTsPyT1w/tree/master.svg?style=svg)](https://circleci.com/gh/stnava/ANTsPyT1w/tree/master)
+
 ## reference processing for t1-weighted neuroimages (human)
 
 the outputs of these processes can be used for data inspection/cleaning/triage
