@@ -113,7 +113,7 @@ def get_data( name=None, force_download=False, version=23, target_extension='.cs
             datapath = os.path.join(DATA_PATH, fname)
 
     if datapath is None:
-        raise ValueError('File doesnt exist. Options: ' , os.listdir(DATA_PATH))
+        os.listdir(DATA_PATH)
     return datapath
 
 

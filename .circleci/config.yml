@@ -1,0 +1,37 @@
+version: 2
+
+
+steps: &steps
+  steps:
+#    - restore_cache:
+#        keys:
+#          - cache-{{ .Environment.CIRCLE_JOB }}
+    - checkout
+    - run:
+        name: Build package
+        command: python3 setup.py install
+    - run:
+        name: Check package
+        command: python3 tests/test_reference_run.py
+
+jobs:
+  release:
+    docker:
+      - image: stnava/antsr:latest
+    <<: *steps
+  oldrel:
+    docker:
+      - image: stnava/antsr:latest
+    <<: *steps
+  devel:
+    docker:
+      - image: stnava/antsr:latest
+    <<: *steps
+
+workflows:
+  version: 2
+  all:
+    jobs:
+      - release
+#      - oldrel
+#      - devel

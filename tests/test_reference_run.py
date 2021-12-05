@@ -13,7 +13,7 @@ import antspynet
 import ants
 
 testingClass = unittest.TestCase( )
-
+antspyt1w.get_data()
 ##### get example data + reference templates
 fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
 tfn = antspyt1w.get_data('T_template0', target_extension='.nii.gz' )
