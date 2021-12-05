@@ -9,7 +9,7 @@ steps: &steps
     - checkout
     - run:
         name: Build package dependencies
-        command: python3 -m pip install pandas scipy antspyx
+        command: python3 -m pip install --user pandas scipy antspyx
     - run:
         name: Build package
         command: python3 setup.py install
