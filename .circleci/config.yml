@@ -3,10 +3,13 @@ version: 2
 
 steps: &steps
   steps:
-#    - restore_cache:
-#        keys:
-#          - cache-{{ .Environment.CIRCLE_JOB }}
+    - restore_cache:
+        keys:
+          - cache-{{ .Environment.CIRCLE_JOB }}
     - checkout
+    - run:
+        name: Build package dependencies
+        command: python3 -m pip install pandas
     - run:
         name: Build package
         command: python3 setup.py install
