@@ -30,7 +30,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=26, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=27, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -584,6 +584,8 @@ def deep_mtl(t1):
 
     mtl_description = pd.DataFrame(labels, columns=['Label'])
     mtl_description.insert(1, "Description", label_descriptions)
+
+    mtl_description = map_segmentation_to_dataframe( 'mtl_description', relabeled_image )
 
     deep_mtl_dictionary = {
                           'mtl_description':mtl_description,
@@ -1314,6 +1316,14 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
     ##### deep_flash medial temporal lobe parcellation
     deep_flash = deep_mtl(img)
 
+    if verbose:
+        print("NBM")
+
+    ##### deep_nbm basal forebrain parcellation
+    deep_nbm = deep_nbm( img,
+        get_data("ch13_weights",target_extension='.h5'),
+        get_data("nbm3_weights",target_extension='.h5') )
+
     mydataframes = {
         "hemispheres":hemi,
         "tissues":tissue,
@@ -1322,7 +1332,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "dktcortex":dktc,
         "wmtracts_left":wmtdfL,
         "wmtracts_right":wmtdfR,
-        "wmh":myhypo['wmh_summary']
+        "wmh":myhypo['wmh_summary'],
+        "mtl":deep_flash['mtl_description'],
+        "nbm":deep_nbm['description']
         }
 
     outputs = {
@@ -1339,6 +1351,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "white_matter_hypointensity":myhypo,
         "wm_tractsL":wm_tractsL,
         "wm_tractsR":wm_tractsR,
+        "mtl":deep_flash['mtl_segmentation'],
+        "nbm":deep_nbm['segmentation'],
         "dataframes": mydataframes
     }
 
