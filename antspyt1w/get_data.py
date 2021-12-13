@@ -30,7 +30,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=23, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=26, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -930,6 +930,228 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
         "wmh_evidence_of_existence":float(qq),
         "wmh_max_prob":lesresam.max(),
         "features":myfeatures }
+
+
+
+def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
+
+    """
+    Nucleus basalis of Meynert segmentation and subdivision
+
+    Perform NBM segmentation in T1 images using Avants labels.
+
+    t1 : T1-weighted neuroimage antsImage - already brain extracted
+
+    ch13_weights : string weight file for ch13
+
+    nbm_weights : string weight file for nbm
+
+    The labeling is as follows:
+
+    Label,Description,Side
+    1,CH13_left,left
+    2,CH13_right,right
+    3,NBM_left_ant,left
+    4,NBM_left_mid,left
+    5,NBM_left_pos,left
+    6,NBM_right_ant,right
+    7,NBM_right_mid,right
+    8,NBM_right_pos,right
+
+    """
+
+    labels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    label_descriptions = ['background',
+                          'CH13_left',
+                          'CH13_right',
+                          'NBM_left_ant',
+                          'NBM_left_mid',
+                          'NBM_left_pos',
+                          'NBM_right_ant',
+                          'NBM_right_mid',
+                          'NBM_right_pos',
+                          ]
+
+
+    template = ants.image_read(get_data("CIT168_T1w_700um_pad_adni", target_extension=".nii.gz"))
+    templateSmall = ants.resample_image( template, [2.5,2.5,2.5] )
+
+
+    template = ants.resample_image( template, [0.5,0.5,0.5] )
+    registration = ants.registration(fixed=templateSmall, moving=t1,
+        type_of_transform="antsRegistrationSyNQuickRepro[s]", verbose=False )
+
+    if verbose:
+        print( registration['fwdtransforms'] )
+
+    image = ants.apply_transforms( template, t1, registration['fwdtransforms'][1], whichtoinvert=[False] )
+    bfPriorL1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_left", target_extension=".nii.gz"))
+    bfPriorR1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_right", target_extension=".nii.gz"))
+    bfPriorL2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_left", target_extension=".nii.gz"))
+    bfPriorR2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_right", target_extension=".nii.gz"))
+
+    mytype = "float32"
+    nlayers = 4   # for unet
+
+    patchSize = [ 64, 64, 32 ]
+    priorL1tosub = ants.apply_transforms( image, bfPriorL1, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
+    priorR1tosub = ants.apply_transforms( image, bfPriorR1, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
+    priorL2tosub = ants.apply_transforms( image, bfPriorL2, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
+    priorR2tosub = ants.apply_transforms( image, bfPriorR2, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
+
+    csfquantile = np.quantile(image[image>1e-4],0.15)
+    masker = ants.threshold_image(image, csfquantile, 1e9 )
+
+    ch13point = ants.get_center_of_mass( priorL1tosub + priorR1tosub )
+    def special_crop( x, pt, domainer ):
+        pti = np.round( ants.transform_physical_point_to_index( x, pt ) )
+        xdim = x.shape
+        for k in range(len(xdim)):
+            if pti[k] < 0:
+                pti[k]=0
+            if pti[k] > (xdim[k]-1):
+                pti[k]=(xdim[k]-1)
+        mim = ants.make_image( domainer )
+        ptioff = pti.copy()
+        for k in range(len(xdim)):
+            ptioff[k] = ptioff[k] - np.round( domainer[k] / 2 )
+        domainerlo = []
+        domainerhi = []
+        for k in range(len(xdim)):
+            domainerlo.append( int(ptioff[k] - 2) )
+            domainerhi.append( int(ptioff[k] + 2) )
+        loi = ants.crop_indices( x, tuple(domainerlo), tuple(domainerhi) )
+        mim = ants.copy_image_info(loi,mim)
+        return ants.resample_image_to_target( x, mim )
+
+    nchanCH13 = 1
+    nclasstosegCH13 = 3 # for ch13
+    nchanNBM = 2
+    nclasstosegNBM = 4 # for nbm
+    actor = 'classification'
+    nfilt = 32
+    addoptsNBM = "nnUnetActivationStyle"
+    unetCH13 = antspynet.create_unet_model_3d(
+         [ None, None, None, nchanCH13 ],
+         number_of_outputs = nclasstosegCH13, # number of landmarks must be known
+         number_of_layers = 4, # should optimize this wrt criterion
+         number_of_filters_at_base_layer = 32, # should optimize this wrt criterion
+         convolution_kernel_size = 3, # maybe should optimize this wrt criterion
+         deconvolution_kernel_size = 2,
+         pool_size = 2,
+         strides = 2,
+         dropout_rate = 0,
+         weight_decay = 0,
+         mode = 'classification' )
+    unetCH13.load_weights( ch13_weights )
+
+    physspace = special_crop( image, ch13point, patchSize)
+    ch13array = physspace.numpy()
+    newshape = list( ch13array.shape )
+    newshape.insert(0,1)
+    newshape.append(1)
+    ch13pred = unetCH13.predict( tf.reshape( ch13array, newshape ) )
+    ch13pred1_image = ants.from_numpy( ch13pred[0,:,:,:,1] )
+    ch13pred2_image = ants.from_numpy( ch13pred[0,:,:,:,2] )
+    ch13pred1_image=ants.copy_image_info( physspace, ants.threshold_image(ch13pred1_image, 0.35, 1.0 ) )
+    ch13pred2_image=ants.copy_image_info( physspace, ants.threshold_image(ch13pred2_image, 0.35, 1.0 ) ) * 2.0
+    ch13total = ch13pred1_image + ch13pred2_image
+    ch13total = ants.resample_image_to_target(ch13total, image, interp_type='nearestNeighbor')
+    ch13totalback = ants.apply_transforms( t1, ch13total * masker,
+        registration['invtransforms'][0], whichtoinvert=[True], interpolator='nearestNeighbor' )
+
+    if verbose:
+        print("CH13 done")
+
+    maskind = 3
+    nlayers =  4 # for unet
+    unet1 = antspynet.create_unet_model_3d(
+         [ None, None, None, 2 ],
+          number_of_outputs = 1, # number of landmarks must be known
+           number_of_layers = 4, # should optimize this wrt criterion
+           number_of_filters_at_base_layer = 32, # should optimize this wrt criterion
+           convolution_kernel_size = 3, # maybe should optimize this wrt criterion
+           deconvolution_kernel_size = 2,
+           pool_size = 2,
+           strides = 2,
+           dropout_rate = 0.0,
+           weight_decay = 0,
+           additional_options = "nnUnetActivationStyle",
+           mode = "sigmoid" )
+    maskinput = tf.keras.layers.Input( [ None, None,  None, 1 ] )
+    posteriorMask1 = tf.keras.layers.multiply(
+      [ unet1.outputs[0] , maskinput ], name='maskTimesPosteriors1'  )
+    unet = tf.keras.models.Model( [ unet1.inputs[0], maskinput ], posteriorMask1 )
+
+    unet2 = antspynet.create_unet_model_3d(
+         [ None, None, None, 2 ],
+          number_of_outputs = nclasstosegNBM, # number of landmarks must be known
+           number_of_layers = 4, # should optimize this wrt criterion
+           number_of_filters_at_base_layer = 32, # should optimize this wrt criterion
+           convolution_kernel_size = 3, # maybe should optimize this wrt criterion
+           deconvolution_kernel_size = 2,
+           pool_size = 2,
+           strides = 2,
+           dropout_rate = 0.0,
+           weight_decay = 0,
+           additional_options = "nnUnetActivationStyle",
+           mode =  "classification" )
+
+    temp = tf.split( unet1.inputs[0], 2, axis=4 )
+    temp[1] = unet.outputs[0]
+    newmult = tf.concat( temp, axis=4 )
+    unetonnet = unet2( newmult )
+    unetNBM = tf.keras.models.Model(
+        unet.inputs,
+        [ unetonnet,  unet1.outputs[0] ] )
+    unetNBM.load_weights( nbm_weights )
+
+    # do each side separately
+    bfseg = t1 * 0.0
+    for nbmnum in [0,1]:
+        if nbmnum == 0:
+            nbmpoint = ants.get_center_of_mass( priorL2tosub )
+            nbmprior = special_crop( priorL2tosub, nbmpoint, patchSize).numpy() # prior
+            labels=[0,3,4,5]
+        if nbmnum == 1:
+            nbmpoint = ants.get_center_of_mass( priorR2tosub )
+            nbmprior = special_crop( priorR2tosub, nbmpoint, patchSize).numpy() # prior
+            labels=[0,6,7,8]
+        physspaceNBM = special_crop( image, nbmpoint, patchSize) # image
+        nbmmask = special_crop( masker, nbmpoint, patchSize).numpy() # mask
+        tfarr1 = tf.stack( [physspaceNBM.numpy(),nbmprior], axis=3  )
+        newshapeNBM = list( tfarr1.shape )
+        newshapeNBM.insert(0,1)
+        tfarr1 = tf.reshape(tfarr1, newshapeNBM )
+        tfarr2 = tf.reshape( nbmmask, newshape )
+        nbmpred = unetNBM.predict( ( tfarr1, tfarr2  ) )
+        segpred = nbmpred[0]
+        sigmoidpred = nbmpred[1]
+        nbmpred1_image = ants.from_numpy( sigmoidpred[0,:,:,:,0] )
+        nbmpred1_image = ants.copy_image_info( physspaceNBM, nbmpred1_image )
+        bint = ants.threshold_image( nbmpred1_image, 0.5, 1.0 ).iMath("GetLargestComponent")
+        probability_images = []
+        for jj in range(4):
+            temp = ants.from_numpy( segpred[0,:,:,:,jj] )
+            probability_images.append( ants.copy_image_info( physspaceNBM, temp ) )
+        image_matrix = ants.image_list_to_matrix(probability_images[1:(len(probability_images))], bint)
+        background_foreground_matrix = np.stack([ants.image_list_to_matrix([probability_images[0]], bint),
+                                                    np.expand_dims(np.sum(image_matrix, axis=0), axis=0)])
+        foreground_matrix = np.argmax(background_foreground_matrix, axis=0)
+        segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1) * foreground_matrix
+        segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), bint)[0]
+        relabeled_image = ants.image_clone(segmentation_image)
+        for i in range(len(labels)):
+            relabeled_image[segmentation_image==i] = labels[i]
+        relabeled_image = ants.resample_image_to_target(relabeled_image, image, interp_type='nearestNeighbor')
+        relabeled_image = ants.apply_transforms( t1, relabeled_image,
+            registration['invtransforms'][0], whichtoinvert=[True], interpolator='nearestNeighbor' )
+        if verbose:
+            print("NBM" + str( nbmnum ) )
+        bfseg = bfseg + relabeled_image
+    bfseg = ch13totalback + bfseg * ants.threshold_image( ch13totalback, 0, 0 )
+    bfsegdesc = map_segmentation_to_dataframe( 'nbm3CH13', bfseg )
+    return { 'segmentation':bfseg, 'description':bfsegdesc }
 
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False, verbose=True ):
     """
