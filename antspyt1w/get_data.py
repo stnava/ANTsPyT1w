@@ -980,13 +980,16 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
 
 
     template = ants.resample_image( template, [0.5,0.5,0.5] )
-    registration = ants.registration(fixed=templateSmall, moving=t1,
+    registration = ants.registration(
+        fixed=templateSmall,
+        moving=ants.iMath(t1,"Normalize"),
         type_of_transform="antsRegistrationSyNQuickRepro[s]", verbose=False )
 
     if verbose:
         print( registration['fwdtransforms'] )
 
     image = ants.apply_transforms( template, t1, registration['fwdtransforms'][1], whichtoinvert=[False] )
+    image = ants.iMath( image, "TruncateIntensity", 0.0001, 0.999 ).iMath("Normalize")
     bfPriorL1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_left", target_extension=".nii.gz"))
     bfPriorR1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_right", target_extension=".nii.gz"))
     bfPriorL2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_left", target_extension=".nii.gz"))
