@@ -1320,7 +1320,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         print("NBM")
 
     ##### deep_nbm basal forebrain parcellation
-    deep_nbm = deep_nbm( img,
+    deep_bf = deep_nbm( img,
         get_data("ch13_weights",target_extension='.h5'),
         get_data("nbm3_weights",target_extension='.h5') )
 
@@ -1334,7 +1334,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "wmtracts_right":wmtdfR,
         "wmh":myhypo['wmh_summary'],
         "mtl":deep_flash['mtl_description'],
-        "nbm":deep_nbm['description']
+        "bf":deep_bf['description']
         }
 
     outputs = {
@@ -1352,7 +1352,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "wm_tractsL":wm_tractsL,
         "wm_tractsR":wm_tractsR,
         "mtl":deep_flash['mtl_segmentation'],
-        "nbm":deep_nbm['segmentation'],
+        "bf":deep_bf['segmentation'],
         "dataframes": mydataframes
     }
 
