@@ -976,9 +976,7 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
 
 
     template = ants.image_read(get_data("CIT168_T1w_700um_pad_adni", target_extension=".nii.gz"))
-    templateSmall = ants.resample_image( template, [2.5,2.5,2.5] )
-
-
+    templateSmall = ants.resample_image( template, [2.0,2.0,2.0] )
     template = ants.resample_image( template, [0.5,0.5,0.5] )
     registration = ants.registration(
         fixed=templateSmall,
@@ -994,9 +992,6 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
     bfPriorR1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_right", target_extension=".nii.gz"))
     bfPriorL2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_left", target_extension=".nii.gz"))
     bfPriorR2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_right", target_extension=".nii.gz"))
-
-    mytype = "float32"
-    nlayers = 4   # for unet
 
     patchSize = [ 64, 64, 32 ]
     priorL1tosub = ants.apply_transforms( image, bfPriorL1, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
@@ -1156,7 +1151,11 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
         bfseg = bfseg + relabeled_image
     bfseg = ch13totalback + bfseg * ants.threshold_image( ch13totalback, 0, 0 )
     bfsegdesc = map_segmentation_to_dataframe( 'nbm3CH13', bfseg )
-    return { 'segmentation':bfseg, 'description':bfsegdesc }
+
+    masker = ants.apply_transforms( t1, masker,
+        registration['invtransforms'][0], whichtoinvert=[True],
+        interpolator='nearestNeighbor' )
+    return { 'segmentation':bfseg, 'description':bfsegdesc, 'mask': masker }
 
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False, verbose=True ):
     """
