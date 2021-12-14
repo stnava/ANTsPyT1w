@@ -1350,7 +1350,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False
             padding=10,
             labels_to_register = [1,2,3,4,5,6],
             total_sigma=0.1,
-            is_test=False )['synL']
+            is_test=is_test )['synL']
         cit168lab = get_data( "det_atlas_25_pad_LR_adni", target_extension='.nii.gz' )
         cit168lab = ants.image_read( cit168lab )
         cit168lab = ants.apply_transforms( img, cit168lab,
