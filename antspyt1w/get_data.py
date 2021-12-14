@@ -986,18 +986,18 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
     if verbose:
         print( registration['fwdtransforms'] )
 
-    image = ants.apply_transforms( template, t1, registration['fwdtransforms'][1], whichtoinvert=[False] )
-    image = ants.iMath( image, "TruncateIntensity", 0.0001, 0.999 ).iMath("Normalize")
+    # image = ants.apply_transforms( template, t1, registration['fwdtransforms'][1], whichtoinvert=[False] )
+    image = ants.iMath( t1, "TruncateIntensity", 0.0001, 0.999 ).iMath("Normalize")
     bfPriorL1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_left", target_extension=".nii.gz"))
     bfPriorR1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_right", target_extension=".nii.gz"))
     bfPriorL2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_left", target_extension=".nii.gz"))
     bfPriorR2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_right", target_extension=".nii.gz"))
 
     patchSize = [ 64, 64, 32 ]
-    priorL1tosub = ants.apply_transforms( image, bfPriorL1, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
-    priorR1tosub = ants.apply_transforms( image, bfPriorR1, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
-    priorL2tosub = ants.apply_transforms( image, bfPriorL2, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
-    priorR2tosub = ants.apply_transforms( image, bfPriorR2, registration['fwdtransforms'][0] ).smooth_image( 3 ).iMath("Normalize")
+    priorL1tosub = ants.apply_transforms( image, bfPriorL1, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorR1tosub = ants.apply_transforms( image, bfPriorR1, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorL2tosub = ants.apply_transforms( image, bfPriorL2, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorR2tosub = ants.apply_transforms( image, bfPriorR2, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
 
     csfquantile = np.quantile(image[image>1e-4],0.15)
     masker = ants.threshold_image(image, csfquantile, 1e9 )
@@ -1056,9 +1056,9 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
     ch13pred1_image=ants.copy_image_info( physspace, ants.threshold_image(ch13pred1_image, 0.35, 1.0 ) )
     ch13pred2_image=ants.copy_image_info( physspace, ants.threshold_image(ch13pred2_image, 0.35, 1.0 ) ) * 2.0
     ch13total = ch13pred1_image + ch13pred2_image
-    ch13total = ants.resample_image_to_target(ch13total, image, interp_type='nearestNeighbor')
-    ch13totalback = ants.apply_transforms( t1, ch13total * masker,
-        registration['invtransforms'][0], whichtoinvert=[True], interpolator='nearestNeighbor' )
+    ch13totalback = ants.resample_image_to_target(ch13total, image, interp_type='nearestNeighbor') * masker
+#    ch13totalback = ants.apply_transforms( t1, ch13total * masker,
+#        registration['invtransforms'][0], whichtoinvert=[True], interpolator='nearestNeighbor' )
 
     if verbose:
         print("CH13 done")
@@ -1144,17 +1144,16 @@ def deep_nbm( t1, ch13_weights, nbm_weights, verbose=True ):
         for i in range(len(labels)):
             relabeled_image[segmentation_image==i] = labels[i]
         relabeled_image = ants.resample_image_to_target(relabeled_image, image, interp_type='nearestNeighbor')
-        relabeled_image = ants.apply_transforms( t1, relabeled_image,
-            registration['invtransforms'][0], whichtoinvert=[True], interpolator='nearestNeighbor' )
+#        relabeled_image = ants.apply_transforms( t1, relabeled_image, registration['invtransforms'][0], whichtoinvert=[True], interpolator='nearestNeighbor' )
         if verbose:
             print("NBM" + str( nbmnum ) )
         bfseg = bfseg + relabeled_image
     bfseg = ch13totalback + bfseg * ants.threshold_image( ch13totalback, 0, 0 )
     bfsegdesc = map_segmentation_to_dataframe( 'nbm3CH13', bfseg )
 
-    masker = ants.apply_transforms( t1, masker,
-        registration['invtransforms'][0], whichtoinvert=[True],
-        interpolator='nearestNeighbor' )
+#    masker = ants.apply_transforms( t1, masker,
+#        registration['invtransforms'][0], whichtoinvert=[True],
+#        interpolator='nearestNeighbor' )
     return { 'segmentation':bfseg, 'description':bfsegdesc, 'mask': masker }
 
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False, verbose=True ):
