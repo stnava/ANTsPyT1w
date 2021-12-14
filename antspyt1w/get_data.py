@@ -1343,7 +1343,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False
         cit168reg = region_reg(
             input_image = img,
             input_image_tissue_segmentation=myparc['tissue_segmentation'],
-            input_image_region_segmentation=myparc['brain_extraction'],
+            input_image_region_segmentation=imgbxt,
             input_template=cit168adni,
             input_template_region_segmentation=ants.threshold_image( cit168adni, 0.15, 1 ),
             output_prefix=output_prefix + "_CIT168RRSYN",
