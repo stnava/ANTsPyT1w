@@ -6,7 +6,7 @@ __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'deep_mtl', 'label_hemispheres','brain_extraction',
     'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn',
-    'map_intensity_to_dataframe']
+    'map_intensity_to_dataframe', 'deep_nbm', 'map_cit168']
 
 from pathlib import Path
 import os
@@ -1184,7 +1184,7 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
 
     return { 'segmentation':bfseg, 'description':bfsegdesc, 'mask': masker }
 
-def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False, verbose=True ):
+def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False, is_test=False, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -1198,6 +1198,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
     by atropos: csf, gm, wm, dgm, brainstem, cerebellum) to define
     the tissue types / regions of the brain to register.  set to None to
     skip registration which will be faster but omit some results.
+
+    cit168 : boolean returns labels from CIT168 atlas
 
     is_test: boolean ( parameters to run more quickly but with low quality )
 
@@ -1330,6 +1332,31 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
         wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
 
+    cit168lab = None
+    cit168reg = None
+    cit168lab_desc = None
+    if cit168:
+        if verbose:
+            print("cit168")
+        cit168adni = get_data( "CIT168_T1w_700um_pad_adni",target_extension='.nii.gz')
+        cit168adni = ants.image_read( cit168adni ).iMath("Normalize")
+        cit168reg = region_reg(
+            input_image = img,
+            input_image_tissue_segmentation=myparc['tissue_segmentation'],
+            input_image_region_segmentation=myparc['brain_extraction'],
+            input_template=cit168adni,
+            input_template_region_segmentation=ants.threshold_image( cit168adni, 0.15, 1 ),
+            output_prefix=output_prefix + "_CIT168RRSYN",
+            padding=10,
+            labels_to_register = [1,2,3,4,5,6],
+            total_sigma=0.1,
+            is_test=False )['synL']
+        cit168lab = get_data( "det_atlas_25_pad_LR_adni", target_extension='.nii.gz' )
+        cit168lab = ants.image_read( cit168lab )
+        cit168lab = ants.apply_transforms( img, cit168lab,
+                cit168reg['invtransforms'], interpolator = 'genericLabel' )
+        cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab )
+
     if verbose:
         print("hippocampus")
 
@@ -1363,7 +1390,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "wmtracts_right":wmtdfR,
         "wmh":myhypo['wmh_summary'],
         "mtl":deep_flash['mtl_description'],
-        "bf":deep_bf['description']
+        "bf":deep_bf['description'],
+        "cit168":cit168lab_desc
         }
 
     outputs = {
@@ -1382,6 +1410,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], is_test=False,
         "wm_tractsR":wm_tractsR,
         "mtl":deep_flash['mtl_segmentation'],
         "bf":deep_bf['segmentation'],
+        "cit168lab":  cit168lab,
+        "cit168reg":  cit168reg,
         "dataframes": mydataframes
     }
 
