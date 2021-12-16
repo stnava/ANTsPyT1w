@@ -1184,7 +1184,8 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
 
     return { 'segmentation':bfseg, 'description':bfsegdesc, 'mask': masker }
 
-def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False, is_test=False, verbose=True ):
+def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
+    imgbxt=None, cit168 = False, is_test=False, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -1198,6 +1199,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False
     by atropos: csf, gm, wm, dgm, brainstem, cerebellum) to define
     the tissue types / regions of the brain to register.  set to None to
     skip registration which will be faster but omit some results.
+
+    imgbxt : pre-existing brain extraction - a binary image - will disable some processing
 
     cit168 : boolean returns labels from CIT168 atlas
 
@@ -1239,8 +1242,13 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False
     templatealr = ants.image_read( tlrfn )
     templateb = ants.image_read( bfn )
     templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
-    imgbxt = brain_extraction( x )
-    img = x * imgbxt
+    if imgbxt is None:
+        probablySR = False
+        imgbxt = brain_extraction( x )
+        img = x * imgbxt
+    else:
+        probablySR = True
+        img = ants.image_clone( x )
 
     if verbose:
         print("rbp")
@@ -1256,8 +1264,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5], cit168 = False
 
     ##### intensity modifications
     img = ants.iMath( img, "Normalize" ) * 255.0
-    img = ants.denoise_image( img, imgbxt, noise_model='Gaussian')
-    img = ants.n4_bias_field_correction( img ).iMath("Normalize")
+    if not probablySR:
+        img = ants.denoise_image( img, imgbxt, noise_model='Gaussian')
+        img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
     # optional - quick look at result
     bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
