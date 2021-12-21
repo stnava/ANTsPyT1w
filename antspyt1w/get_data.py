@@ -30,7 +30,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=29, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=30, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -995,13 +995,13 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
 
     template = ants.image_read(get_data("CIT168_T1w_700um_pad_adni", target_extension=".nii.gz"))
     templateSmall = ants.resample_image( template, [2.0,2.0,2.0] )
-    registration = ants.registration(
+    registrationsyn = ants.registration(
         fixed=templateSmall,
         moving=ants.iMath(t1use,"Normalize"),
         type_of_transform="antsRegistrationSyNQuickRepro[s]", verbose=False )
 
     if verbose:
-        print( registration['fwdtransforms'] )
+        print( registrationsyn['fwdtransforms'] )
 
     image = ants.iMath( t1use, "TruncateIntensity", 0.0001, 0.999 ).iMath("Normalize")
     bfPriorL1 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_1_left", target_extension=".nii.gz"))
@@ -1010,10 +1010,10 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
     bfPriorR2 = ants.image_read(get_data("CIT168_basal_forebrain_adni_prob_2_right", target_extension=".nii.gz"))
 
     patchSize = [ 64, 64, 32 ]
-    priorL1tosub = ants.apply_transforms( image, bfPriorL1, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
-    priorR1tosub = ants.apply_transforms( image, bfPriorR1, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
-    priorL2tosub = ants.apply_transforms( image, bfPriorL2, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
-    priorR2tosub = ants.apply_transforms( image, bfPriorR2, registration['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorL1tosub = ants.apply_transforms( image, bfPriorL1, registrationsyn['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorR1tosub = ants.apply_transforms( image, bfPriorR1, registrationsyn['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorL2tosub = ants.apply_transforms( image, bfPriorL2, registrationsyn['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
+    priorR2tosub = ants.apply_transforms( image, bfPriorR2, registrationsyn['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
 
     masker = ants.threshold_image(image, np.quantile(image[image>1e-4], csfquantile ), 1e9 )
 
@@ -1135,11 +1135,11 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
         if nbmnum == 0:
             nbmpoint = ants.get_center_of_mass( priorL2tosub )
             nbmprior = special_crop( priorL2tosub, nbmpoint, patchSize).numpy() # prior
-            labels=[0,3,4,5]
+            labels=[3,4,5]
         if nbmnum == 1:
             nbmpoint = ants.get_center_of_mass( priorR2tosub )
             nbmprior = special_crop( priorR2tosub, nbmpoint, patchSize).numpy() # prior
-            labels=[0,6,7,8]
+            labels=[6,7,8]
         physspaceNBM = special_crop( image, nbmpoint, patchSize) # image
         nbmmask = special_crop( masker, nbmpoint, patchSize).numpy() # mask
         tfarr1 = tf.stack( [physspaceNBM.numpy(),nbmprior], axis=3  )
@@ -1154,18 +1154,15 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
         nbmpred1_image = ants.copy_image_info( physspaceNBM, nbmpred1_image )
         bint = ants.threshold_image( nbmpred1_image, 0.5, 1.0 ).iMath("GetLargestComponent")
         probability_images = []
-        for jj in range(4):
-            temp = ants.from_numpy( segpred[0,:,:,:,jj] )
+        for jj in range(3):
+            temp = ants.from_numpy( segpred[0,:,:,:,jj+1] )
             probability_images.append( ants.copy_image_info( physspaceNBM, temp ) )
-        image_matrix = ants.image_list_to_matrix(probability_images[1:(len(probability_images))], bint)
-        background_foreground_matrix = np.stack([ants.image_list_to_matrix([probability_images[0]], bint),
-                                                    np.expand_dims(np.sum(image_matrix, axis=0), axis=0)])
-        foreground_matrix = np.argmax(background_foreground_matrix, axis=0)
-        segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1) * foreground_matrix
+        image_matrix = ants.image_list_to_matrix(probability_images, bint)
+        segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1)
         segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), bint)[0]
         relabeled_image = ants.image_clone(segmentation_image)
         for i in range(len(labels)):
-            relabeled_image[segmentation_image==i] = labels[i]
+            relabeled_image[segmentation_image==(i+1)] = labels[i]
         relabeled_image = ants.resample_image_to_target(relabeled_image, image, interp_type='nearestNeighbor')
         if registration:
             relabeled_image = ants.apply_transforms( t1, relabeled_image,
