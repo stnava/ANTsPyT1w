@@ -936,7 +936,7 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
 
 
 def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
-    csfquantile = 0.15, verbose=False ):
+    csfquantile = 0.15, binary_mask=None, verbose=False ):
 
     """
     Nucleus basalis of Meynert segmentation and subdivision
@@ -952,6 +952,8 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
     registration : boolean to correct for image orientation and resolution by registration
 
     csfquantile : float value below 0.5 that tries to trim residual CSF off brain.
+
+    binary_mask : will restrict output to this mask
 
     The labeling is as follows:
 
@@ -1015,7 +1017,11 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
     priorL2tosub = ants.apply_transforms( image, bfPriorL2, registrationsyn['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
     priorR2tosub = ants.apply_transforms( image, bfPriorR2, registrationsyn['invtransforms'] ).smooth_image( 3 ).iMath("Normalize")
 
-    masker = ants.threshold_image(image, np.quantile(image[image>1e-4], csfquantile ), 1e9 )
+    if binary_mask is None:
+        masker = ants.threshold_image(image, np.quantile(image[image>1e-4], csfquantile ), 1e9 )
+    else:
+        masker = ants.apply_transforms( image, binary_mask,
+            orireg['fwdtransforms'], interpolator='genericLabel' )
 
     ch13point = ants.get_center_of_mass( priorL1tosub + priorR1tosub )
     def special_crop( x, pt, domainer ):
@@ -1384,7 +1390,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     ##### deep_nbm basal forebrain parcellation
     deep_bf = deep_nbm( img,
         get_data("ch13_weights",target_extension='.h5'),
-        get_data("nbm3_weights",target_extension='.h5') )
+        get_data("nbm3_weights",target_extension='.h5'),
+        binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
 
     mydataframes = {
         "hemispheres":hemi,
