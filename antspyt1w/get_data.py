@@ -1126,7 +1126,7 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
     unetonnet = unet2( newmult )
     unetNBM = tf.keras.models.Model(
         unet.inputs,
-        [ unetonnet,  unet1.outputs[0] ] )
+        [ unetonnet,  unet.outputs[0] ] )
     unetNBM.load_weights( nbm_weights )
 
     # do each side separately
