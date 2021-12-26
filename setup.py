@@ -4,7 +4,7 @@ from setuptools import setup
 long_description = open("README.md").read()
 
 setup(name='antspyt1w',
-      version='0.3.7',
+      version='0.3.8',
       description='T1w human neuroimage processing with antspyx',
       long_description=long_description,
       long_description_content_type="text/markdown; charset=UTF-8; variant=GFM",
