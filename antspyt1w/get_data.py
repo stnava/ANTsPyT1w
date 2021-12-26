@@ -1249,6 +1249,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         probablySR = False
         imgbxt = brain_extraction( x )
         img = x * imgbxt
+        img = ants.iMath( img, "TruncateIntensity", 1e-4, 0.999 ).iMath( "Normalize" )
     else:
         probablySR = True
         img = ants.image_clone( x )
