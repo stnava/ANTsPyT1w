@@ -1191,7 +1191,9 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
 
 
 
-def deep_cit168( t1, binary_mask = None, syn_type='antsRegistrationSyNQuickRepro[s]' ):
+def deep_cit168( t1, binary_mask = None,
+    syn_type='antsRegistrationSyNQuickRepro[s]',
+    priors = None, verbose = False):
 
     """
     CIT168 atlas segmentation with a parcellation unet.
@@ -1208,10 +1210,17 @@ def deep_cit168( t1, binary_mask = None, syn_type='antsRegistrationSyNQuickRepro
     syn_type : the type of registration used for generating priors; usually
        either SyN or antsRegistrationSyNQuickRepro[s] for repeatable results
 
+    priors : the user can provide their own priors through this argument; for
+       example, the user may run this function twice, with the output of the first
+       giving input to the second run.
+
+    verbose: boolean
+
     Failure modes will primarily occur around red nucleus and caudate nucleus.
     For the latter, one might consider masking by the ventricular CSF, in particular
     near the anterior and inferior portion of the caudate in subjects with
-    large ventricles.
+    large ventricles.  Low quality images with high atropy are also likely outside
+    of the current range of the trained models. Iterating the model may help.
 
     """
     def tfsubset( x, indices ):
@@ -1269,8 +1278,14 @@ def deep_cit168( t1, binary_mask = None, syn_type='antsRegistrationSyNQuickRepro
         orireg['fwdtransforms'][1] )
     image = ants.iMath( image, "TruncateIntensity",0.001,0.999).iMath("Normalize")
     patchSize = [ 160,160,112 ]
-    priortosub = ants.apply_transforms( image, myprior,
+    if priors is None:
+        priortosub = ants.apply_transforms( image, myprior,
             orireg['invtransforms'][1], interpolator='nearestNeighbor' )
+    else:
+        if verbose:
+            print("using priors")
+        priortosub = ants.apply_transforms( image, priors,
+            orireg['fwdtransforms'][1], interpolator='genericLabel' )
     bmask = ants.threshold_image( priortosub, 1, 999 )
     # this identifies the cropping location - assumes a good registration
     pt = list( ants.get_center_of_mass( bmask ) )
