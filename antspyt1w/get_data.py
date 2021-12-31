@@ -1191,7 +1191,7 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
 
 
 
-def deep_cit168( t1, binary_mask = None ):
+def deep_cit168( t1, binary_mask = None, syn_type='antsRegistrationSyNQuickRepro[s]' ):
 
     """
     CIT168 atlas segmentation with a parcellation unet.
@@ -1204,6 +1204,9 @@ def deep_cit168( t1, binary_mask = None ):
     all possible confounding issues.
 
     binary_mask : will restrict output to this mask
+
+    syn_type : the type of registration used for generating priors; usually
+       either SyN or antsRegistrationSyNQuickRepro[s] for repeatable results
 
     Failure modes will primarily occur around red nucleus and caudate nucleus.
     For the latter, one might consider masking by the ventricular CSF, in particular
@@ -1261,7 +1264,7 @@ def deep_cit168( t1, binary_mask = None ):
     orireg = ants.registration(
                     fixed = templateSmall,
                     moving = ants.iMath( t1, "Normalize" ),
-                    type_of_transform="SyN", verbose=False )
+                    type_of_transform=syn_type, verbose=False )
     image = ants.apply_transforms( nbmtemplate, ants.iMath( t1, "Normalize" ),
         orireg['fwdtransforms'][1] )
     image = ants.iMath( image, "TruncateIntensity",0.001,0.999).iMath("Normalize")
@@ -1576,6 +1579,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         get_data("nbm3_weights",target_extension='.h5'),
         binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
 
+    if verbose:
+        print("deep CIT168")
     ##### deep CIT168 segmentation - relatively fast
     deep_cit = deep_cit168( img,
         binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )

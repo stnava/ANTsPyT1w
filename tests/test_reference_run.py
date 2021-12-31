@@ -12,16 +12,16 @@ import antspyt1w
 import antspynet
 import ants
 
-with tempfile.TemporaryDirectory() as temp_dir:
-    tempfn=temp_dir+'/apt1wtest'
-testingClass = unittest.TestCase( )
 antspyt1w.get_data(force_download=True)
-##### get example data + reference templates
 fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
 img = ants.image_read( fn )
-testhier = antspyt1w.hierarchical(x, output_prefix=tempfn,
-    labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
 
+testingClass = unittest.TestCase( )
+with tempfile.TemporaryDirectory() as temp_dir:
+    tempfn=temp_dir+'/apt1wtest'
+    testhier = antspyt1w.hierarchical( img, output_prefix=tempfn,
+        labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
+derka
 ##### specialized labeling for hippocampus
 # hippLR = antspyt1w.deep_hippo( img, templateb, 1 )
 # testingClass.assertAlmostEqual(
