@@ -1597,8 +1597,12 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     if verbose:
         print("deep CIT168")
     ##### deep CIT168 segmentation - relatively fast
-    deep_cit = deep_cit168( img,
-        binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
+    if cit168lab is not None:
+        deep_cit = deep_cit168( img,  priors = cit168lab,
+            binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
+    else:
+        deep_cit = deep_cit168( img,
+            binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
 
     mydataframes = {
         "hemispheres":hemi,
