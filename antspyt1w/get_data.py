@@ -6,7 +6,7 @@ __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'deep_mtl', 'label_hemispheres','brain_extraction',
     'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn',
-    'map_intensity_to_dataframe', 'deep_nbm', 'map_cit168']
+    'map_intensity_to_dataframe', 'deep_nbm', 'map_cit168', 'deep_cit168']
 
 from pathlib import Path
 import os
@@ -30,7 +30,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=30, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=32, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -1187,6 +1187,188 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
 
     return { 'segmentation':bfseg, 'description':bfsegdesc, 'mask': masker }
 
+
+
+
+
+def deep_cit168( t1, binary_mask = None ):
+
+    """
+    CIT168 atlas segmentation with a parcellation unet.
+
+    Perform CIT168 segmentation in T1 images using Pauli atlas (CIT168) labels.
+
+    t1 : T1-weighted neuroimage antsImage - already brain extracted.  image should
+    be normalized 0 to 1 and with a nicely uniform histogram (no major outliers).
+    we do a little work internally to help this but no guarantees it will handle
+    all possible confounding issues.
+
+    binary_mask : will restrict output to this mask
+
+    Failure modes will primarily occur around red nucleus and caudate nucleus.
+    For the latter, one might consider masking by the ventricular CSF, in particular
+    near the anterior and inferior portion of the caudate in subjects with
+    large ventricles.
+
+    """
+    def tfsubset( x, indices ):
+        with tf.device('/CPU:0'):
+            outlist = []
+            for k in indices:
+                outlist.append( x[:,:,:,int(k)] )
+            return tf.stack( outlist, axis=3 )
+
+    def tfsubsetbatch( x, indices ):
+        with tf.device('/CPU:0'):
+            outlist2 = []
+            for j in range( len( x ) ):
+                outlist = []
+                for k in indices:
+                    if len( x[j].shape ) == 5:
+                        outlist.append( x[j][k,:,:,:,:] )
+                    if len( x[j].shape ) == 4:
+                        outlist.append( x[j][k,:,:,:] )
+                outlist2.append( tf.stack( outlist, axis=0 ) )
+        return outlist2
+
+    def special_crop( x, pt, domainer ):
+                pti = np.round( ants.transform_physical_point_to_index( x, pt ) )
+                xdim = x.shape
+                for k in range(len(xdim)):
+                    if pti[k] < 0:
+                        pti[k]=0
+                    if pti[k] > (xdim[k]-1):
+                        pti[k]=(xdim[k]-1)
+                mim = ants.make_image( domainer )
+                ptioff = pti.copy()
+                for k in range(len(xdim)):
+                    ptioff[k] = ptioff[k] - np.round( domainer[k] / 2 )
+                domainerlo = []
+                domainerhi = []
+                for k in range(len(xdim)):
+                    domainerlo.append( int(ptioff[k] - 1) )
+                    domainerhi.append( int(ptioff[k] + 1) )
+                loi = ants.crop_indices( x, tuple(domainerlo), tuple(domainerhi) )
+                mim = ants.copy_image_info(loi,mim)
+                return ants.resample_image_to_target( x, mim )
+
+    registration = True
+    cit168seg = t1 * 0
+    myprior = ants.image_read(get_data("det_atlas_25_pad_LR_adni", target_extension=".nii.gz"))
+    nbmtemplate = ants.image_read( get_data( "CIT168_T1w_700um_pad_adni", target_extension=".nii.gz" ) )
+    nbmtemplate = ants.resample_image( nbmtemplate, [0.5,0.5,0.5] )
+    templateSmall = ants.resample_image( nbmtemplate, [2.0,2.0,2.0] )
+    orireg = ants.registration(
+                    fixed = templateSmall,
+                    moving = ants.iMath( t1, "Normalize" ),
+                    type_of_transform="SyN", verbose=False )
+    image = ants.apply_transforms( nbmtemplate, ants.iMath( t1, "Normalize" ),
+        orireg['fwdtransforms'][1] )
+    image = ants.iMath( image, "TruncateIntensity",0.001,0.999).iMath("Normalize")
+    patchSize = [ 160,160,112 ]
+    priortosub = ants.apply_transforms( image, myprior,
+            orireg['invtransforms'][1], interpolator='nearestNeighbor' )
+    bmask = ants.threshold_image( priortosub, 1, 999 )
+    # this identifies the cropping location - assumes a good registration
+    pt = list( ants.get_center_of_mass( bmask ) )
+    pt[1] = pt[1] + 10.0  # same as we did in training
+
+    physspaceCIT = special_crop( image, pt, patchSize) # image
+
+    if binary_mask is not None:
+        binary_mask_use = ants.apply_transforms( nbmtemplate, binary_mask,
+            orireg['fwdtransforms'][1] )
+        binary_mask_use = special_crop( binary_mask_use, pt, patchSize)
+
+    for sn in [True,False]:
+        if sn:
+            group_labels = [0,7,8,9,23,24,25,33,34]
+            newfn=get_data( "deepCIT168_sn", target_extension=".h5" )
+        else:
+            group_labels = [0,1,2,5,6,17,18,21,22]
+            newfn=get_data( "deepCIT168", target_extension=".h5" )
+
+        number_of_classification_labels = len(group_labels)
+        number_of_channels = len(group_labels)
+
+        unet0 = antspynet.create_unet_model_3d(
+                 [ None, None, None, number_of_channels ],
+                 number_of_outputs = 1, # number of landmarks must be known
+                 number_of_layers = 4, # should optimize this wrt criterion
+                 number_of_filters_at_base_layer = 32, # should optimize this wrt criterion
+                 convolution_kernel_size = 3, # maybe should optimize this wrt criterion
+                 deconvolution_kernel_size = 2,
+                 pool_size = 2,
+                 strides = 2,
+                 dropout_rate = 0.0,
+                 weight_decay = 0,
+                 additional_options = "nnUnetActivationStyle",
+                 mode =  "sigmoid" )
+
+        unet1 = antspynet.create_unet_model_3d(
+            [None,None,None,2],
+            number_of_outputs=number_of_classification_labels,
+            mode="classification",
+            number_of_filters=(32, 64, 96, 128, 256),
+            convolution_kernel_size=(3, 3, 3),
+            deconvolution_kernel_size=(2, 2, 2),
+            dropout_rate=0.0,
+            weight_decay=0,
+            additional_options = "nnUnetActivationStyle")
+
+        temp = tf.split( unet0.inputs[0], 9, axis=4 )
+        temp[1] = unet0.outputs[0]
+        newmult = tf.concat( temp[0:2], axis=4 )
+        unetonnet = unet1( newmult )
+        unet_model = tf.keras.models.Model(
+                unet0.inputs,
+                [ unetonnet,  unet0.outputs[0] ] )
+        unet_model.load_weights( newfn )
+        ###################
+        nbmprior = special_crop( priortosub, pt, patchSize).numpy() # prior
+        imgnp = tf.reshape( physspaceCIT.numpy(), [160, 160, 112,1])
+        nbmprior = tf.one_hot( nbmprior, 35 )
+        nbmprior = tfsubset( nbmprior, group_labels[1:len(group_labels)] )
+        imgnp = tf.reshape( tf.concat( [imgnp,nbmprior], axis=3), [1,160, 160, 112,9])
+
+        nbmpred = unet_model.predict( imgnp )
+        segpred = nbmpred[0]
+        sigmoidpred = nbmpred[1]
+
+        nbmpred1_image = ants.from_numpy( sigmoidpred[0,:,:,:,0] )
+        nbmpred1_image = ants.copy_image_info( physspaceCIT, nbmpred1_image )
+        if binary_mask is not None:
+            nbmpred1_image = nbmpred1_image * binary_mask_use
+        bint = ants.threshold_image( nbmpred1_image, 0.5, 1.0 )
+
+        probability_images = []
+        for jj in range(1,len(group_labels)):
+            temp = ants.from_numpy( segpred[0,:,:,:,jj] )
+            temp = ants.copy_image_info( physspaceCIT, temp )
+            probability_images.append( temp )
+
+        image_matrix = ants.image_list_to_matrix(probability_images, bint)
+        segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1)
+        segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), bint)[0]
+        relabeled_image = ants.image_clone(segmentation_image*0.)
+        for i in np.unique(segmentation_image.numpy()):
+            if i > 0 :
+                temp = ants.threshold_image(segmentation_image,i,i)
+                if group_labels[int(i)] < 33:
+                    temp = ants.iMath( temp, "GetLargestComponent")
+                relabeled_image = relabeled_image + temp*group_labels[int(i)]
+        relabeled_image = ants.resample_image_to_target(relabeled_image, image, interp_type='genericLabel')
+        if registration:
+                    relabeled_image = ants.apply_transforms( t1, relabeled_image,
+                            orireg['invtransforms'][0], whichtoinvert=[True],
+                            interpolator='genericLabel' )
+        cit168seg = cit168seg + relabeled_image
+
+    cit168segdesc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168seg )
+
+    return { 'segmentation':cit168seg, 'description':cit168segdesc }
+
+
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     imgbxt=None, cit168 = False, is_test=False, verbose=True ):
     """
@@ -1394,6 +1576,10 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         get_data("nbm3_weights",target_extension='.h5'),
         binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
 
+    ##### deep CIT168 segmentation - relatively fast
+    deep_cit = deep_cit168( img,
+        binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
+
     mydataframes = {
         "hemispheres":hemi,
         "tissues":tissue,
@@ -1405,7 +1591,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "wmh":myhypo['wmh_summary'],
         "mtl":deep_flash['mtl_description'],
         "bf":deep_bf['description'],
-        "cit168":cit168lab_desc
+        "cit168":cit168lab_desc,
+        "deep_cit168":deep_cit['description'],
         }
 
     outputs = {
@@ -1424,6 +1611,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "wm_tractsR":wm_tractsR,
         "mtl":deep_flash['mtl_segmentation'],
         "bf":deep_bf['segmentation'],
+        "deep_cit168lab":  deep_cit['segmentation'],
         "cit168lab":  cit168lab,
         "cit168reg":  cit168reg,
         "dataframes": mydataframes
