@@ -1382,7 +1382,7 @@ def deep_cit168( t1, binary_mask = None,
                             interpolator='genericLabel' )
         cit168seg = cit168seg + relabeled_image
 
-    cit168segdesc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168seg )
+    cit168segdesc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168seg ).dropna(0)
 
     return { 'segmentation':cit168seg, 'description':cit168segdesc }
 
@@ -1570,7 +1570,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
             is_test=not cit168 )['synL']
     cit168lab = ants.apply_transforms( img, cit168labT,
                 cit168reg['invtransforms'], interpolator = 'genericLabel' )
-    cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab )
+    cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(0)
 
     if verbose:
         print("hippocampus")
