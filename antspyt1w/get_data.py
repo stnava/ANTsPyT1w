@@ -471,19 +471,18 @@ def deep_hippo(
     avgleft = ants.iMath(avgleft,"Normalize")    # output: probability image left
     hippright_bin = ants.threshold_image( avgright, 0.5, 2.0 ).iMath("GetLargestComponent")
     hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent")
-
+    hipp_bin = hippleft_bin + hippright_bin * 2
     hippleftORlabels  = ants.label_geometry_measures(hippleft_bin, avgleft)
     hippleftORlabels['Description'] = 'left hippocampus'
     hipprightORlabels  = ants.label_geometry_measures(hippright_bin, avgright)
     hipprightORlabels['Description'] = 'right hippocampus'
-
+    hippleftORlabels=hippleftORlabels.append( hipprightORlabels )
+    hippleftORlabels['Label']=[1,2]
     labels = {
+        'segmentation':hipp_bin,
+        'description':hippleftORlabels,
         'HLProb':avgleft,
-        'HLBin':hippleft_bin,
-        'HLStats': hippleftORlabels,
         'HRProb':avgright,
-        'HRBin':hippright_bin,
-        'HRStats': hipprightORlabels,
     }
     return labels
 
@@ -1633,6 +1632,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "cit168":cit168lab_desc,
         "deep_cit168":deep_cit['description'],
         "snseg":snseg_desc,
+        "hippLR":hippLR['description'],
         }
 
     outputs = {
@@ -1644,8 +1644,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "left_right": mylr,
         "dkt_parc": myparc,
         "registration":reg,
-        "hippLR":hippLR,
-        "medial_temporal_lobe":deep_flash,
+        "hippLR":hippLR['segmentation'],
         "white_matter_hypointensity":myhypo,
         "wm_tractsL":wm_tractsL,
         "wm_tractsR":wm_tractsR,
