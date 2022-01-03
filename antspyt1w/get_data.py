@@ -637,9 +637,6 @@ def deep_mtl(t1):
     for i in range(len(labels)):
         relabeled_image[segmentation_image==i] = labels[i]
 
-    mtl_description = pd.DataFrame(labels, columns=['Label'])
-    mtl_description.insert(1, "Description", label_descriptions)
-
     mtl_description = map_segmentation_to_dataframe( 'mtl_description', relabeled_image )
 
     deep_mtl_dictionary = {
