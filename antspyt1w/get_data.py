@@ -241,16 +241,72 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
 
 
 
-def brain_extraction( x ):
+def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
     """
     quick brain extraction for individual images
 
     x: input image
 
+    dilation: amount to dilate first brain extraction in millimeters
+
+    method: version currently v0 or any other string gives two different results
+
+    verbose: boolean
+
     """
-    bxtmethod = 't1combined[5]' # better for individual subjects
-    bxt = antspynet.brain_extraction( x, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent")
-    return bxt
+    closedilmm = 5.0
+    spacing = ants.get_spacing(x)
+    spacing_product = spacing[0] * spacing[1] * spacing[2]
+    spcmin = min( spacing )
+    dilationRound = int(np.round( dilation / spcmin ))
+    closedilRound = int(np.round( closedilmm / spcmin ))
+    xn3 = ants.n3_bias_field_correction( x, 8 ).n3_bias_field_correction( 4 )
+    xn3 = ants.iMath(xn3, "TruncateIntensity",0.001,0.999).iMath("Normalize")
+    if method == 'v0':
+        if verbose:
+            print("method v0")
+        bxtmethod = 't1combined[' + str(closedilRound) +']' # better for individual subjects
+        bxt = antspynet.brain_extraction( xn3, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent").iMath("FillHoles")
+        return bxt
+    if verbose:
+        print("method candidate")
+    bxt0 = antspynet.brain_extraction( xn3, "t1" ).threshold_image(0.5,1.0).iMath("GetLargestComponent").morphology( "close", closedilRound ).iMath("FillHoles")
+    bxt0dil = ants.iMath( bxt0, "MD", dilationRound )
+    image = ants.iMath( xn3 * bxt0dil,"Normalize")*255
+    # no no brainer
+    model = antspynet.create_nobrainer_unet_model_3d((None, None, None, 1))
+    weights_file_name = antspynet.get_pretrained_network("brainExtractionNoBrainer")
+    model.load_weights(weights_file_name)
+    image_array = image.numpy()
+    image_robust_range = np.quantile(image_array[np.where(image_array != 0)], (0.02, 0.98))
+    threshold_value = 0.10 * (image_robust_range[1] - image_robust_range[0]) + image_robust_range[0]
+    thresholded_mask = ants.threshold_image(image, -10000, threshold_value, 0, 1)
+    thresholded_image = image * thresholded_mask
+    image_resampled = ants.resample_image(thresholded_image, (256, 256, 256), use_voxels=True)
+    image_array = np.expand_dims(image_resampled.numpy(), axis=0)
+    image_array = np.expand_dims(image_array, axis=-1)
+    brain_mask_array = np.squeeze(model.predict(image_array))
+    brain_mask_resampled = ants.copy_image_info(image_resampled, ants.from_numpy(brain_mask_array))
+    brain_mask_image = ants.resample_image(brain_mask_resampled, image.shape, use_voxels=True, interp_type=1)
+    brain_mask_image = brain_mask_image * ants.threshold_image( brain_mask_image, 0.5, 1e9 )
+    minimum_brain_volume = round(649933.7/spacing_product)
+    bxt1 = ants.label_clusters(brain_mask_image, minimum_brain_volume)
+    nblabels = np.unique( bxt1.numpy() )# .astype(int)
+    maxol = 0.0
+    bestlab = bxt0
+
+    for j in range(1,len(nblabels)):
+        temp = ants.threshold_image( bxt1, j, j )
+        tempsum = ( bxt0 * temp ).sum()
+        dicer = ants.label_overlap_measures( temp, bxt0 )
+        if  tempsum > maxol and dicer['MeanOverlap'][1] > 0.5 :
+            if verbose:
+                print( str(j) + ' dice ' + str( dicer['MeanOverlap'][1] ) )
+            maxol = tempsum
+            bestlab = temp
+    adder = trim_segmentation_by_distance( bxt0, 1, closedilmm )
+    bestlab = ants.threshold_image( bestlab + adder, 1, 2 )
+    return bestlab
 
 
 def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
