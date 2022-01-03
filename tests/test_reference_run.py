@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
     tempfn=temp_dir+'/apt1wtest'
     testhier = antspyt1w.hierarchical( img, output_prefix=tempfn,
         labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
-derka
+
 ##### specialized labeling for hippocampus
 # hippLR = antspyt1w.deep_hippo( img, templateb, 1 )
 # testingClass.assertAlmostEqual(

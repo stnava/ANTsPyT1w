@@ -1442,6 +1442,27 @@ def deep_cit168( t1, binary_mask = None,
     return { 'segmentation':cit168seg, 'description':cit168segdesc }
 
 
+def preprocess_intensity( x, brain_extraction ):
+    """
+    Default intensity processing for a brain-extracted T1-weighted image.
+
+    Arguments
+    ---------
+
+    x : T1-weighted neuroimage antsImage after brain extraction applied
+
+    brain_extraction : T1-weighted neuroimage brain extraction / segmentation
+
+    Returns
+    -------
+    processed image
+    """
+    img = ants.iMath( x, "TruncateIntensity", 1e-4, 0.999 ).iMath( "Normalize" )
+    img = ants.denoise_image( img, brain_extraction, noise_model='Gaussian')
+    img = ants.n4_bias_field_correction( img, mask=brain_extraction, rescale_intensities=True, ).iMath("Normalize")
+    return img
+
+
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     imgbxt=None, cit168 = False, is_test=False, verbose=True ):
     """
@@ -1504,8 +1525,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     if imgbxt is None:
         probablySR = False
         imgbxt = brain_extraction( x )
-        img = x * imgbxt
-        img = ants.iMath( img, "TruncateIntensity", 1e-4, 0.999 ).iMath( "Normalize" )
+        img = preprocess_intensity( x, imgbxt )
     else:
         probablySR = True
         img = ants.image_clone( x )
@@ -1524,9 +1544,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     ##### intensity modifications
     img = ants.iMath( img, "Normalize" ) * 255.0
-    if not probablySR:
-        img = ants.denoise_image( img, imgbxt, noise_model='Gaussian')
-        img = ants.n4_bias_field_correction( img ).iMath("Normalize")
 
     # optional - quick look at result
     bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
@@ -1809,3 +1826,61 @@ def zoom_syn( target_image, template, template_segmentations,
           'croppedimage': croplow,
           'croppingmask': cropper
           }
+
+
+
+
+
+
+def write_hierarchical( hierarchical_object, output_prefix ):
+    """
+    standardized writing of output for hierarchical function
+
+    Arguments
+    ---------
+    hierarchical_object : output of antspyt1w.hierarchical
+
+    output_prefix : string path including directory and file prefix that will
+        be applied to all output, both csv and images.
+
+    Returns
+    -------
+    None
+
+    """
+
+    # write extant dataframes
+    for myvar in hierarchical_object['dataframes'].keys():
+        if hierarchical_object['dataframes'][myvar] is not None:
+            hierarchical_object['dataframes'][myvar].dropna(0).to_csv(output_prefix + myvar + ".csv")
+
+    (hierarchical_object['rbp']).to_csv( output_prefix + "rbp.csv" )
+
+    myvarlist = [
+        'brain_n4_dnz',
+        'brain_extraction',
+        'wm_tractsL',
+        'wm_tractsR',
+        'bf',
+        'mtl',
+        'snseg',
+        'deep_cit168lab',
+        'cit168lab',
+        'left_right' ]
+    myvarlist = hierarchical_object.keys()
+    r16img = ants.image_read( ants.get_data( "r16" ))
+    for myvar in myvarlist:
+        if hierarchical_object[myvar] is not None and type(hierarchical_object[myvar]) == type( r16img ):
+            ants.image_write( hierarchical_object[myvar], output_prefix + myvar + '.nii.gz' )
+
+    myvarlist = [
+        'tissue_segmentation',
+        'dkt_parcellation',
+        'dkt_lobes',
+        'dkt_cortex',
+        'hemisphere_labels' ]
+    for myvar in myvarlist:
+        if hierarchical_object['dkt_parc'][myvar] is not None:
+            ants.image_write( hierarchical_object['dkt_parc'][myvar], output_prefix + myvar + '.nii.gz' )
+
+    return

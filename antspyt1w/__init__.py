@@ -22,3 +22,5 @@ from .get_data import map_intensity_to_dataframe
 from .get_data import trim_segmentation_by_distance
 from .get_data import deep_nbm
 from .get_data import deep_cit168
+from .get_data import write_hierarchical
+from .get_data import preprocess_intensity
