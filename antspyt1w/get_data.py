@@ -504,13 +504,14 @@ def deep_hippo(
     img,
     template,
     number_of_tries = 10,
+    syn_type="antsRegistrationSyNQuickRepro[a]"
 ):
 
     avgleft = img * 0
     avgright = img * 0
     for k in range(number_of_tries):
         rig = ants.registration( template, ants.rank_intensity(img),
-            "antsRegistrationSyNQuickRepro[a]", random_seed=k )
+            syn_type, random_seed=k )
         rigi = ants.apply_transforms( template, img, rig['fwdtransforms'] )
         hipp = antspynet.hippmapp3r_segmentation( rigi, do_preprocessing=False )
         hippr = ants.apply_transforms(
@@ -1659,7 +1660,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     ntries = 10
     if is_test:
         ntries = 1
-    hippLR = deep_hippo( img, templateb, ntries )
+    hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries, syn_type='SyN' )
 
     if verbose:
         print("medial temporal lobe")
