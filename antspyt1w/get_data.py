@@ -5,7 +5,7 @@ Get local ANTsPyT1w data
 __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'deep_mtl', 'label_hemispheres','brain_extraction',
-    'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn',
+    'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn', 'merge_hierarchical_csvs_to_wide_format',
     'map_intensity_to_dataframe', 'deep_nbm', 'map_cit168', 'deep_cit168']
 
 from pathlib import Path
@@ -18,6 +18,7 @@ import pickle
 import sys
 import numpy as np
 import random
+import re
 import functools
 from operator import mul
 from scipy.sparse.linalg import svds
@@ -1443,7 +1444,7 @@ def deep_cit168( t1, binary_mask = None,
                             interpolator='genericLabel' )
         cit168seg = cit168seg + relabeled_image
 
-    cit168segdesc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168seg ).dropna(0)
+    cit168segdesc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168seg ).dropna(axis=0)
 
     return { 'segmentation':cit168seg, 'description':cit168segdesc }
 
@@ -1649,7 +1650,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
             is_test=not cit168 )['synL']
     cit168lab = ants.apply_transforms( img, cit168labT,
                 cit168reg['invtransforms'], interpolator = 'genericLabel' )
-    cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(0)
+    cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(axis=0)
 
     if verbose:
         print("hippocampus")
@@ -1696,9 +1697,10 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     snseg = ants.apply_transforms( img, tbinseg,
         snreg['invtransforms'], interpolator = 'genericLabel' )
     snseg = snseg * ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
-    snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(0)
+    snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
 
     mydataframes = {
+        "rbp": rbp,
         "hemispheres":hemi,
         "tissues":tissue,
         "dktlobes":dktl,
@@ -1720,7 +1722,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "brain_n4_dnz_png": bxt_png,
         "brain_extraction": imgbxt,
         "tissue_seg_png": tissue_seg_png,
-        "rbp": rbp,
         "left_right": mylr,
         "dkt_parc": myparc,
         "registration":reg,
@@ -1859,7 +1860,7 @@ def write_hierarchical( hierarchical_object, output_prefix ):
     # write extant dataframes
     for myvar in hierarchical_object['dataframes'].keys():
         if hierarchical_object['dataframes'][myvar] is not None:
-            hierarchical_object['dataframes'][myvar].dropna(0).to_csv(output_prefix + myvar + ".csv")
+            hierarchical_object['dataframes'][myvar].dropna(axis=0).to_csv(output_prefix + myvar + ".csv")
 
     (hierarchical_object['rbp']).to_csv( output_prefix + "rbp.csv" )
 
@@ -1891,3 +1892,89 @@ def write_hierarchical( hierarchical_object, output_prefix ):
             ants.image_write( hierarchical_object['dkt_parc'][myvar], output_prefix + myvar + '.nii.gz' )
 
     return
+
+
+
+
+def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=None, identifier_name='u_hier_id' ):
+    """
+    standardized merging of output for dataframes produced by hierarchical function.
+
+    Arguments
+    ---------
+    hierarchical_dataframes : output of antspyt1w.hierarchical
+
+    identifier : unique subject identifier e.g. subject_001
+
+    identifier_name : string name for the unique identifer column e.g. subject_id
+
+    Returns
+    -------
+    data frame in wide format
+
+    """
+    # "rbp":pd.read_csv("sub-104_T1wH_v0SRrbp.csv"), "mtl":pd.read_csv("sub-104_T1wH_v0SRmtl.csv"), "snseg":pd.read_csv("sub-104_T1wH_v0SRsnseg.csv"), "derka":None }
+    if identifier is None:
+        identifier='A'
+    csvfns=glob.glob("*sv")
+    hierarchical_dataframes={}
+    for j in range(len(csvfns)):
+        hierarchical_dataframes[csvfns[j]] = pd.read_csv(csvfns[j] )
+    wide_df = pd.DataFrame( )
+    for myvar in hierarchical_dataframes.keys():
+        if hierarchical_dataframes[myvar] is not None:
+            jdf = hierarchical_dataframes[myvar].dropna(axis=0)
+            jdf = jdf.loc[:, ~jdf.columns.str.contains('^Unnamed')]
+            if jdf.shape[0] > 1 and any( jdf.columns.str.contains('VolumeInMillimeters')):
+                varsofinterest = ["Description", "VolumeInMillimeters"]
+                jdfsub = jdf[varsofinterest]
+                jdfsub.insert(loc=0, column=identifier_name, value=identifier)
+                jdfsub=jdfsub.set_index([identifier_name, 'Description']).VolumeInMillimeters.unstack().add_prefix('Vol_')
+                jdfsub.columns=jdfsub.columns+myvar
+                jdfsub = jdfsub.rename(mapper=lambda x: x.strip().replace(' ', '_').lower(), axis=1)
+                wide_df = wide_df.join(jdfsub,how='outer')
+            if jdf.shape[0] > 1 and any( jdf.columns.str.contains('SurfaceAreaInMillimetersSquared')):
+                varsofinterest = ["Description", "SurfaceAreaInMillimetersSquared"]
+                jdfsub = jdf[varsofinterest]
+                jdfsub.insert(loc=0, column=identifier_name, value=identifier)
+                jdfsub=jdfsub.set_index([identifier_name, 'Description']).SurfaceAreaInMillimetersSquared.unstack().add_prefix('Area_')
+                jdfsub.columns=jdfsub.columns+myvar
+                jdfsub = jdfsub.rename(mapper=lambda x: x.strip().replace(' ', '_').lower(), axis=1)
+                wide_df = wide_df.join(jdfsub,how='outer')
+            if jdf.shape[0] > 1 and any( jdf.columns.str.contains('SurfaceAreaInMillimetersSquared')) and any( jdf.columns.str.contains('VolumeInMillimeters')):
+                varsofinterest = ["Description", "VolumeInMillimeters", "SurfaceAreaInMillimetersSquared"]
+                jdfsub = jdf[varsofinterest]
+                jdfsub.insert(loc=0, column=identifier_name, value=identifier)
+                jdfsub.insert(loc=1, column='thickness',value=jdfsub['VolumeInMillimeters']/jdfsub['SurfaceAreaInMillimetersSquared'])
+                jdfsub=jdfsub.set_index([identifier_name, 'Description']).thickness.unstack().add_prefix('Thk_')
+                jdfsub.columns=jdfsub.columns+myvar
+                jdfsub = jdfsub.rename(mapper=lambda x: x.strip().replace(' ', '_').lower(), axis=1)
+                wide_df = wide_df.join(jdfsub,how='outer')
+
+    # handle RBP
+    rbpkey='sub-104_T1wH_v0SRrbp.csv'
+    if rbpkey in hierarchical_dataframes.keys():
+        temp = hierarchical_dataframes[rbpkey].copy()
+        temp = temp.loc[:, ~temp.columns.str.contains('^Unnamed')]
+        temp.insert(loc=0, column=identifier_name, value=identifier)
+        temp = temp.set_index(identifier_name)
+        wide_df = wide_df.join(temp,how='outer')
+
+    # handle wmh
+    wmhkey='wmh'
+    wmhkey='sub-104_T1wH_v0SRwmh.csv'
+    if wmhkey in hierarchical_dataframes.keys():
+        df=hierarchical_dataframes[wmhkey].copy()
+        df.insert(loc=0, column=identifier_name, value=identifier)
+        df = df.set_index(identifier_name)
+        wmhval = df.loc[ df.Description == 'Volume_of_WMH','Value']
+        wide_df.insert(loc = 0, column = 'wmh_vol', value =wmhval )
+        wmhval = df.loc[ df.Description == 'Integral_WMH_probability','Value']
+        wide_df.insert(loc = 0, column = 'wmh_integral_prob', value =wmhval )
+        wmhval = df.loc[ df.Description == 'Log_Evidence','Value']
+        wide_df.insert(loc = 0, column = 'wmh_log_evidence', value =wmhval )
+        wide_df['wmh_log_evidence']=wmhval
+
+    wide_df.insert(loc = 0, column = identifier_name, value = identifier)
+
+    return wide_df

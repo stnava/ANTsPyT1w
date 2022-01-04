@@ -22,4 +22,4 @@ myhypo = antspyt1w.t1_hypointensity(
         myparc['tissue_probabilities'][3], # wm posteriors
         templatea,
         templateawmprior )
-# ants.plot( img, myhypo['wmh_probability_image'] )
+# ants.plot( img, myhypo['wmh_probability_image'] , axis=2)
