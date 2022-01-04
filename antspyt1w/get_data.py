@@ -1862,19 +1862,6 @@ def write_hierarchical( hierarchical_object, output_prefix ):
         if hierarchical_object['dataframes'][myvar] is not None:
             hierarchical_object['dataframes'][myvar].dropna(axis=0).to_csv(output_prefix + myvar + ".csv")
 
-    (hierarchical_object['rbp']).to_csv( output_prefix + "rbp.csv" )
-
-    myvarlist = [
-        'brain_n4_dnz',
-        'brain_extraction',
-        'wm_tractsL',
-        'wm_tractsR',
-        'bf',
-        'mtl',
-        'snseg',
-        'deep_cit168lab',
-        'cit168lab',
-        'left_right' ]
     myvarlist = hierarchical_object.keys()
     r16img = ants.image_read( ants.get_data( "r16" ))
     for myvar in myvarlist:
