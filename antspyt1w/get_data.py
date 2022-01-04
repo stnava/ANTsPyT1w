@@ -1947,7 +1947,7 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=
                 wide_df = wide_df.join(jdfsub,how='outer')
 
     # handle RBP
-    rbpkey='sub-104_T1wH_v0SRrbp.csv'
+    rbpkey='rbp'
     if rbpkey in hierarchical_dataframes.keys():
         temp = hierarchical_dataframes[rbpkey].copy()
         temp = temp.loc[:, ~temp.columns.str.contains('^Unnamed')]
@@ -1957,7 +1957,6 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=
 
     # handle wmh
     wmhkey='wmh'
-    wmhkey='sub-104_T1wH_v0SRwmh.csv'
     if wmhkey in hierarchical_dataframes.keys():
         df=hierarchical_dataframes[wmhkey].copy()
         df.insert(loc=0, column=identifier_name, value=identifier)
