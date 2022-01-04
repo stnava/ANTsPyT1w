@@ -19,6 +19,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
     tempfn=temp_dir+'/apt1wtest'
     testhier = antspyt1w.hierarchical( img, output_prefix=tempfn,
         labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
+    antspyt1w.write_hierarchical( testhier, output_prefix=tempfn )
     uid = os.path.basename( fn )
     uid = re.sub(".nii.gz","",uid)
     outdf = antspyt1w.merge_hierarchical_csvs_to_wide_format( testhier['dataframes'], identifier=uid )
