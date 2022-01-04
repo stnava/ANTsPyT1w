@@ -922,6 +922,15 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
         - features: the features driving WMH predictons
 
     """
+
+    if False: # Need to retrain this model with refined inference code
+        return {
+            "wmh_summary":None,
+            "wmh_probability_image":None,
+            "wmh_evidence_of_existence":None,
+            "wmh_max_prob":None,
+            "features":None }
+
     mybig = [88,128,128]
     templatesmall = ants.resample_image( template, mybig, use_voxels=True )
     qaff = ants.registration(
@@ -937,7 +946,7 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
     realWM = ants.threshold_image( templateWMPrior2x , 0.1, math.inf )
     inimg = ants.rank_intensity( x )
     parcellateWMdnz = ants.kmeans_segmentation( inimg, 2, realWM, mrf=0.3 )['probabilityimages'][0]
-    x2template = ants.apply_transforms( templatesmall, x, afftx, whichtoinvert=[True] )
+    x2template = ants.apply_transforms( templatesmall, inimg, afftx, whichtoinvert=[True] )
     parcellateWMdnz2template = ants.apply_transforms( templatesmall,
       cerebrum * parcellateWMdnz, afftx, whichtoinvert=[True] )
     # features = rank+dnz-image, lprob, wprob, wprior at mybig resolution
@@ -1454,7 +1463,9 @@ def preprocess_intensity( x, brain_extraction ):
     -------
     processed image
     """
-    img = ants.iMath( x, "TruncateIntensity", 1e-4, 0.999 ).iMath( "Normalize" )
+    brain_extraction = ants.resample_image_to_target( brain_extraction, x, interp_type='genericLabel' )
+    img = x * brain_extraction
+    img = ants.iMath( img, "TruncateIntensity", 1e-4, 0.999 ).iMath( "Normalize" )
     img = ants.denoise_image( img, brain_extraction, noise_model='Gaussian')
     img = ants.n4_bias_field_correction( img, mask=brain_extraction, rescale_intensities=True, ).iMath("Normalize")
     return img
@@ -1576,7 +1587,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     if verbose:
         print("WMH")
-
     ##### below here are more exploratory nice to have outputs
     myhypo = t1_hypointensity(
         img,
