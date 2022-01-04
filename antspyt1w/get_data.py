@@ -1913,13 +1913,8 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=
     data frame in wide format
 
     """
-    # "rbp":pd.read_csv("sub-104_T1wH_v0SRrbp.csv"), "mtl":pd.read_csv("sub-104_T1wH_v0SRmtl.csv"), "snseg":pd.read_csv("sub-104_T1wH_v0SRsnseg.csv"), "derka":None }
     if identifier is None:
         identifier='A'
-    csvfns=glob.glob("*sv")
-    hierarchical_dataframes={}
-    for j in range(len(csvfns)):
-        hierarchical_dataframes[csvfns[j]] = pd.read_csv(csvfns[j] )
     wide_df = pd.DataFrame( )
     for myvar in hierarchical_dataframes.keys():
         if hierarchical_dataframes[myvar] is not None:
