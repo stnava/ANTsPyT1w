@@ -504,16 +504,25 @@ def deep_hippo(
     img,
     template,
     number_of_tries = 10,
-    syn_type="antsRegistrationSyNQuickRepro[a]"
+    tx_type="antsRegistrationSyNQuickRepro[a]",
+    verbose=False
 ):
 
     avgleft = img * 0
     avgright = img * 0
     for k in range(number_of_tries):
+        if verbose:
+            print( "try " + str(k))
         rig = ants.registration( template, ants.rank_intensity(img),
-            syn_type, random_seed=k )
+            tx_type, random_seed=k,  verbose=verbose )
+        if verbose:
+            print( rig )
         rigi = ants.apply_transforms( template, img, rig['fwdtransforms'] )
+        if verbose:
+            print( "done with warp - do hippmapp3r" )
         hipp = antspynet.hippmapp3r_segmentation( rigi, do_preprocessing=False )
+        if verbose:
+            print( "done with hippmapp3r - backtransform" )
         hippr = ants.apply_transforms(
             img,
             hipp,
@@ -1553,11 +1562,11 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         print("intensity")
 
     ##### intensity modifications
-    img = ants.iMath( img, "Normalize" ) * 255.0
+    img = ants.iMath( img, "Normalize" )
 
     # optional - quick look at result
     bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
-    ants.plot(img,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
+    ants.plot(img * 255.0,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
         filename = bxt_png )
 
     if verbose:
@@ -1583,7 +1592,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         dktc = map_segmentation_to_dataframe( "dkt", myparc['dkt_cortex'] )
 
     tissue_seg_png = output_prefix + "_seg.png"
-    ants.plot( img, myparc['tissue_segmentation'], axis=2, nslices=21, ncol=7,
+    ants.plot( img*255, myparc['tissue_segmentation'], axis=2, nslices=21, ncol=7,
         alpha=0.6, filename=tissue_seg_png,
         crop=True, black_bg=False )
 
@@ -1660,7 +1669,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     ntries = 10
     if is_test:
         ntries = 1
-    hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries, syn_type='SyN' )
+    hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries, tx_type='Affine' )
 
     if verbose:
         print("medial temporal lobe")
