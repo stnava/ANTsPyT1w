@@ -333,7 +333,8 @@ def subdivide_hemi_label( x  ):
     if axtosplit == 2:
                 x[:,:,0:mid]=x[:,:,0:mid]+3
                 x[:,:,(mid):(localshape[axtosplit])]=x[:,:,(mid):(localshape[axtosplit])]+5
-    return myhemi*notzero
+    return x*notzero
+
 
 def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     """
