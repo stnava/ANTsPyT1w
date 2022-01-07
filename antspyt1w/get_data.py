@@ -310,6 +310,31 @@ def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
     return bestlab
 
 
+def subdivide_hemi_label( x  ):
+    """
+    quick subdivision of the hemisphere label to go from a 2-label to a 4-label.
+    will subdivide along the largest axis in terms of voxels.
+
+    x: input hemisphere label image from label_hemispheres
+
+    verbose: boolean
+
+    """
+    notzero=ants.threshold_image( x, 1, 1e9 )
+    localshape=ants.crop_image( x, ants.threshold_image( x, 1, 1 ) ).shape
+    axtosplit=np.argmax(localshape)
+    mid=int(np.round( localshape[axtosplit] /2 ))
+    if axtosplit == 1:
+                x[:,0:mid,:]=x[:,0:mid,:]+3
+                x[:,(mid):(localshape[axtosplit]),:]=x[:,(mid):(localshape[axtosplit]),:]+5
+    if axtosplit == 0:
+                x[0:mid,:,:]=x[0:mid,:,:]+3
+                x[(mid):(localshape[axtosplit]),:,:]=x[(mid):(localshape[axtosplit]),:,:]+5
+    if axtosplit == 2:
+                x[:,:,0:mid]=x[:,:,0:mid]+3
+                x[:,:,(mid):(localshape[axtosplit])]=x[:,:,(mid):(localshape[axtosplit])]+5
+    return myhemi*notzero
+
 def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     """
     quick somewhat noisy registration solution to hemisphere labeling. typically
