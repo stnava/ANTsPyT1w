@@ -1484,7 +1484,9 @@ def deep_cit168( t1, binary_mask = None,
     return { 'segmentation':cit168seg, 'description':cit168segdesc }
 
 
-def preprocess_intensity( x, brain_extraction ):
+def preprocess_intensity( x, brain_extraction,
+    intensity_truncation_quantiles=[1e-4, 0.999],
+    rescale_intensities=True  ):
     """
     Default intensity processing for a brain-extracted T1-weighted image.
 
@@ -1495,15 +1497,21 @@ def preprocess_intensity( x, brain_extraction ):
 
     brain_extraction : T1-weighted neuroimage brain extraction / segmentation
 
+    intensity_truncation_quantiles: parameters passed to TruncateIntensity; the
+    first value truncates values below this quantile; the second truncates
+    values above this quantile.
+
+    rescale_intensities: boolean passed to n4
+
     Returns
     -------
     processed image
     """
     brain_extraction = ants.resample_image_to_target( brain_extraction, x, interp_type='genericLabel' )
     img = x * brain_extraction
-    img = ants.iMath( img, "TruncateIntensity", 1e-4, 0.999 ).iMath( "Normalize" )
+    img = ants.iMath( img, "TruncateIntensity", intensity_truncation_quantiles[0], intensity_truncation_quantiles[1] ).iMath( "Normalize" )
     img = ants.denoise_image( img, brain_extraction, noise_model='Gaussian')
-    img = ants.n4_bias_field_correction( img, mask=brain_extraction, rescale_intensities=True, ).iMath("Normalize")
+    img = ants.n4_bias_field_correction( img, mask=brain_extraction, rescale_intensities=rescale_intensities, ).iMath("Normalize")
     return img
 
 
