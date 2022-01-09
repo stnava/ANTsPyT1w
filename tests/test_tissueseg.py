@@ -2,7 +2,6 @@ import ants
 import antspyt1w
 import antspynet
 fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
-fn="/tmp/temp.nii.gz"
 x = ants.image_read( fn )
 bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 templateb = ants.image_read( bfn )
