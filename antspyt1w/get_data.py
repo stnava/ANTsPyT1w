@@ -271,6 +271,7 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
     function loop_outlierness for one way to do that.
 
     """
+    template = ants.crop_image( template )
     np.random.seed(int(random_state))
     nvox = template.shape
     X = np.random.rand( nBasis+1, myproduct( nvox ) )
