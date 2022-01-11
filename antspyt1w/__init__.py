@@ -26,3 +26,5 @@ from .get_data import write_hierarchical
 from .get_data import preprocess_intensity
 from .get_data import merge_hierarchical_csvs_to_wide_format
 from .get_data import subdivide_hemi_label
+from .get_data import special_crop
+from .get_data import loop_outlierness

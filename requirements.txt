@@ -5,3 +5,4 @@ antspyx>=0.2.7
 antspynet>=0.0
 tensorflow>=2.2
 pathlib
+PyNomaly>=3.0

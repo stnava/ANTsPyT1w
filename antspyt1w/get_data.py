@@ -22,6 +22,7 @@ import re
 import functools
 from operator import mul
 from scipy.sparse.linalg import svds
+from PyNomaly import loop
 
 import ants
 import antspynet
@@ -183,6 +184,63 @@ def myproduct(lst):
     return( functools.reduce(mul, lst) )
 
 
+def loop_outlierness( random_projections, reference_projections,
+    standardize=True, extent=3, n_neighbors=24, cluster_labels=None ):
+    """
+    Estimate loop outlierness for the input.
+
+    Arguments
+    ---------
+    random_projections : output of random_basis_projection or a similar function
+
+    reference_projections : produced in the same way as random_projections
+
+    standardize: boolean will subtract mean and divide by sd of the reference data
+
+    extent: an integer value [1, 2, 3] that controls the statistical
+        extent, e.g. lambda times the standard deviation from the mean (optional,
+        default 2)
+
+    n_neighbors: the total number of neighbors to consider w.r.t. each
+        sample (optional, default 10)
+
+    cluster_labels: a numpy array of cluster assignments w.r.t. each
+        sample (optional, default None)
+
+    Returns
+    -------
+    loop outlierness probability
+
+    """
+    nBasisUse = reference_projections.shape[1]
+    if random_projections.shape[1] < nBasisUse:
+        nBasisUse = random_projections.shape[1]
+
+    refbases = reference_projections.iloc[:,:nBasisUse]
+    refbasesmean = refbases.mean()
+    refbasessd = refbases.std()
+    normalized_df = refbases
+    if standardize:
+        normalized_df = (normalized_df-refbasesmean)/refbasessd
+    temp = random_projections.iloc[:,:nBasisUse]
+    if standardize:
+        temp = (temp-refbasesmean)/refbasessd
+    normalized_df = normalized_df.append( temp ).dropna(axis=0)
+    if cluster_labels is None:
+        m = loop.LocalOutlierProbability(normalized_df,
+            extent=extent,
+            n_neighbors=n_neighbors ).fit()
+    else:
+        m = loop.LocalOutlierProbability(normalized_df,
+            extent=extent,
+            n_neighbors=n_neighbors,
+            cluster_labels=cluster_labels).fit()
+    scores = m.local_outlier_probabilities
+
+    return scores
+
+
+
 def random_basis_projection( x, template, type_of_transform='Similarity',
     nBasis=10, random_state = 99 ):
     """
@@ -206,7 +264,11 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
 
     Returns
     -------
-    dataframe with projections
+    dataframe with projections and an outlierness estimate.
+
+    the outlierness estimate is based on a small reference dataset of young controls.
+    the user/researcher may want to use a different reference set.  see the
+    function loop_outlierness for one way to do that.
 
     """
     np.random.seed(int(random_state))
@@ -220,9 +282,12 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
     rbpos = randbasis.copy()
     rbpos[rbpos<0] = 0
     norm = ants.rank_intensity(x)
+    trans = ants.registration( template, norm,
+        type_of_transform='antsRegistrationSyNQuickRepro[t]' )
     resamp = ants.registration( template, norm,
         type_of_transform=type_of_transform,
-        aff_metric='GC', random_seed=1 )['warpedmovout']
+        # aff_metric='GC',
+        random_seed=1, initial_transform=trans['fwdtransforms'][0] )['warpedmovout']
     imat = ants.get_neighborhood_in_mask(resamp, resamp*0+1,[0,0,0], boundary_condition='mean' )
     uproj = np.matmul(imat, randbasis)
     uprojpos = np.matmul(imat, rbpos)
@@ -238,11 +303,14 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
         name = "RandBasisProjPos" + str(uprojpos_counter).zfill(2)
         record[name] = i
     df = pd.DataFrame(record, index=[0])
+
+    refbases = pd.read_csv( get_data( "reference_basis", target_extension='.csv' ) )
+    df['loop_outlier_probability'] = loop_outlierness(  df, refbases,
+        n_neighbors=refbases.shape[0] )[ refbases.shape[0] ]
     return df
 
 
-
-def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
+def brain_extraction( x, dilation = 8.0, method = 'v1', verbose=False ):
     """
     quick brain extraction for individual images
 
@@ -335,6 +403,39 @@ def subdivide_hemi_label( x  ):
                 x[:,:,(mid):(localshape[axtosplit])]=x[:,:,(mid):(localshape[axtosplit])]+5
     return x*notzero
 
+
+def special_crop( x, pt, domainer ):
+    """
+    quick cropping to a fixed size patch around a center point
+
+    x: input image
+
+    pt: list of physical space coordinates
+
+    domainer:  list defining patch size
+
+    verbose: boolean
+
+    """
+    pti = np.round( ants.transform_physical_point_to_index( x, pt ) )
+    xdim = x.shape
+    for k in range(len(xdim)):
+        if pti[k] < 0:
+            pti[k]=0
+        if pti[k] > (xdim[k]-1):
+            pti[k]=(xdim[k]-1)
+    mim = ants.make_image( domainer )
+    ptioff = pti.copy()
+    for k in range(len(xdim)):
+        ptioff[k] = ptioff[k] - np.round( domainer[k] / 2 )
+    domainerlo = []
+    domainerhi = []
+    for k in range(len(xdim)):
+        domainerlo.append( int(ptioff[k] - 1) )
+        domainerhi.append( int(ptioff[k] + 1) )
+    loi = ants.crop_indices( x, tuple(domainerlo), tuple(domainerhi) )
+    mim = ants.copy_image_info(loi,mim)
+    return ants.resample_image_to_target( x, mim )
 
 def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     """
@@ -1033,7 +1134,172 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
 
 
 
-def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
+def deep_nbm( t1, nbm_weights, deform=False, aged_template=False,
+    csfquantile=None, verbose=False ):
+
+    """
+    CH13 and Nucleus basalis of Meynert segmentation and subdivision
+
+    Perform CH13 and NBM segmentation in T1 images using Avants labels.
+
+    t1 : T1-weighted neuroimage antsImage - already brain extracted
+
+    nbm_weights : string weight file for parcellating unet
+
+    deform : boolean to correct for image deformation
+
+    aged_template : boolean to control which template to use
+
+    csfquantile: if not None, will try to remove CSF from the image.
+        0.25 may be a good value to try.
+
+    verbose: boolean
+
+    The labeling is as follows:
+
+    Label,Description,Side
+    1,CH13_left,left
+    2,CH13_right,right
+    3,NBM_left_ant,left
+    4,NBM_left_mid,left
+    5,NBM_left_pos,left
+    6,NBM_right_ant,right
+    7,NBM_right_mid,right
+    8,NBM_right_pos,right
+
+    Failure modes will include odd image orientation (in which case you might
+    use the registration option).  A more nefarious issue can be a poor extraction
+    of the cerebrum in the inferior frontal lobe.  These can be unpredictable
+    but if one sees a bad extraction, please check the mask that is output by
+    this function to see if it excludes non-cerebral tissue.
+
+    """
+
+    if not aged_template:
+        refimg = ants.image_read( get_data( "CIT168_T1w_700um_pad", target_extension='.nii.gz' ))
+        refimg = ants.rank_intensity( refimg )
+        refimg = ants.resample_image( refimg, [0.5,0.5,0.5] )
+        refimgseg = ants.image_read( get_data( "CIT168_basal_forebrain", target_extension='.nii.gz' ))
+        refimgsmall = ants.resample_image( refimg, [2.0,2.0,2.0] )
+    else:
+        refimg = ants.image_read( get_data( "CIT168_T1w_700um_pad_adni", target_extension='.nii.gz' ))
+        refimg = ants.rank_intensity( refimg )
+        refimg = ants.resample_image( refimg, [0.5,0.5,0.5] )
+        refimgseg = ants.image_read( get_data( "CIT168_basal_forebrain_adni", target_extension='.nii.gz' ))
+        refimgsmall = ants.resample_image( refimg, [2.0,2.0,2.0] )
+
+    pt_labels = [1,2,3,4]
+    group_labels = [0,1,2,3,4,5,6,7,8]
+    reflection_labels = [0,2,1,6,7,8,3,4,5]
+    crop_size = [144,96,64]
+
+    def nbmpreprocess( img, pt_labels, group_labels, csfquantile=None, returndef=False ):
+        imgr = ants.rank_intensity( img )
+        masker=None
+        if csfquantile is not None:
+            masker = ants.threshold_image( img, np.quantile(img[img>1e-4], csfquantile ), 1e9 )
+            imgr = imgr * masker
+        reg = ants.registration( refimgsmall, imgr, 'SyN',
+            reg_iterations = [200,200,20],
+            verbose=False )
+        if not returndef:
+            imgraff = ants.apply_transforms( refimg, imgr, reg['fwdtransforms'][1], interpolator='linear' )
+            imgseg = ants.apply_transforms( refimg, refimgseg, reg['invtransforms'][1], interpolator='nearestNeighbor' )
+        else:
+            imgraff = ants.apply_transforms( refimg, imgr, reg['fwdtransforms'], interpolator='linear' )
+            imgseg = ants.image_clone( refimgseg )
+        binseg = ants.mask_image( imgseg, imgseg, pt_labels, binarize=True )
+        imgseg = ants.mask_image( imgseg, imgseg, group_labels, binarize=False  )
+        com = ants.get_center_of_mass( binseg )
+        return {
+            "img": imgraff,
+            "seg": imgseg,
+            "imgc": special_crop( imgraff, com, crop_size ),
+            "segc": special_crop( imgseg, com, crop_size ),
+            "reg" : reg,
+            "mask": masker
+            }
+
+
+    nLabels = len( group_labels )
+    number_of_classification_labels = len(group_labels)
+    number_of_channels = 1
+    ################################################
+    unet0 = antspynet.create_unet_model_3d(
+         [ None, None, None, number_of_channels ],
+         number_of_outputs = 1, # number of landmarks must be known
+         number_of_layers = 4, # should optimize this wrt criterion
+         number_of_filters_at_base_layer = 32, # should optimize this wrt criterion
+         convolution_kernel_size = 3, # maybe should optimize this wrt criterion
+         deconvolution_kernel_size = 2,
+         pool_size = 2,
+         strides = 2,
+         dropout_rate = 0.0,
+         weight_decay = 0,
+         additional_options = "nnUnetActivationStyle",
+         mode =  "sigmoid" )
+
+    unet1 = antspynet.create_unet_model_3d(
+        [None,None,None,2],
+        number_of_outputs=number_of_classification_labels,
+        mode="classification",
+        number_of_filters=(32, 64, 96, 128, 256),
+        convolution_kernel_size=(3, 3, 3),
+        deconvolution_kernel_size=(2, 2, 2),
+        dropout_rate=0.0,
+        weight_decay=0,
+        additional_options = "nnUnetActivationStyle")
+
+    # concat output to input and pass to 2nd net
+    nextin = tf.concat(  [ unet0.inputs[0], unet0.outputs[0] ], axis=4 )
+    unetonnet = unet1( nextin )
+    unet_model = tf.keras.models.Model(
+            unet0.inputs,
+            [ unetonnet,  unet0.outputs[0] ] )
+
+    unet_model.load_weights( nbm_weights )
+
+    imgprepro = nbmpreprocess( t1, pt_labels, group_labels,
+        csfquantile = csfquantile,
+        returndef = deform )
+
+    ####################################################
+    physspaceBF = imgprepro['imgc']
+    tfarr1 = tf.cast( physspaceBF.numpy() ,'float32' )
+    newshapeBF = list( tfarr1.shape )
+    newshapeBF.insert(0,1)
+    newshapeBF.insert(4,1)
+    tfarr1 = tf.reshape(tfarr1, newshapeBF )
+    snpred = unet_model.predict( tfarr1 )
+    segpred = snpred[0]
+    sigmoidpred = snpred[1]
+    snpred1_image = ants.from_numpy( sigmoidpred[0,:,:,:,0] )
+    snpred1_image = ants.copy_image_info( physspaceBF, snpred1_image )
+    bint = ants.threshold_image( snpred1_image, 0.5, 1.0 )
+    probability_images = []
+    for jj in range(number_of_classification_labels-1):
+                temp = ants.from_numpy( segpred[0,:,:,:,jj+1] )
+                probability_images.append( ants.copy_image_info( physspaceBF, temp ) )
+    image_matrix = ants.image_list_to_matrix(probability_images, bint)
+    segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1)
+    segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), bint)[0]
+    relabeled_image = ants.image_clone(segmentation_image)
+    for i in range(1,len(group_labels)):
+                relabeled_image[segmentation_image==(i)] = group_labels[i]
+    if not deform:
+        relabeled_image = ants.apply_transforms( t1, relabeled_image,
+                        imgprepro['reg']['invtransforms'][0], whichtoinvert=[True],
+                        interpolator='genericLabel' )
+    else:
+        relabeled_image = ants.apply_transforms( t1, relabeled_image,
+                        imgprepro['reg']['invtransforms'], interpolator='genericLabel' )
+
+    bfsegdesc = map_segmentation_to_dataframe( 'nbm3CH13', relabeled_image )
+
+    return { 'segmentation':relabeled_image, 'description':bfsegdesc, 'mask': imgprepro['mask'] }
+
+
+def deep_nbm_old( t1, ch13_weights, nbm_weights, registration=True,
     csfquantile = 0.15, binary_mask=None, verbose=False ):
 
     """
@@ -1122,26 +1388,6 @@ def deep_nbm( t1, ch13_weights, nbm_weights, registration=True,
             orireg['fwdtransforms'], interpolator='genericLabel' )
 
     ch13point = ants.get_center_of_mass( priorL1tosub + priorR1tosub )
-    def special_crop( x, pt, domainer ):
-        pti = np.round( ants.transform_physical_point_to_index( x, pt ) )
-        xdim = x.shape
-        for k in range(len(xdim)):
-            if pti[k] < 0:
-                pti[k]=0
-            if pti[k] > (xdim[k]-1):
-                pti[k]=(xdim[k]-1)
-        mim = ants.make_image( domainer )
-        ptioff = pti.copy()
-        for k in range(len(xdim)):
-            ptioff[k] = ptioff[k] - np.round( domainer[k] / 2 )
-        domainerlo = []
-        domainerhi = []
-        for k in range(len(xdim)):
-            domainerlo.append( int(ptioff[k] - 1) )
-            domainerhi.append( int(ptioff[k] + 1) )
-        loi = ants.crop_indices( x, tuple(domainerlo), tuple(domainerhi) )
-        mim = ants.copy_image_info(loi,mim)
-        return ants.resample_image_to_target( x, mim )
 
     nchanCH13 = 1
     nclasstosegCH13 = 3 # for ch13
@@ -1341,26 +1587,6 @@ def deep_cit168( t1, binary_mask = None,
                 outlist2.append( tf.stack( outlist, axis=0 ) )
         return outlist2
 
-    def special_crop( x, pt, domainer ):
-                pti = np.round( ants.transform_physical_point_to_index( x, pt ) )
-                xdim = x.shape
-                for k in range(len(xdim)):
-                    if pti[k] < 0:
-                        pti[k]=0
-                    if pti[k] > (xdim[k]-1):
-                        pti[k]=(xdim[k]-1)
-                mim = ants.make_image( domainer )
-                ptioff = pti.copy()
-                for k in range(len(xdim)):
-                    ptioff[k] = ptioff[k] - np.round( domainer[k] / 2 )
-                domainerlo = []
-                domainerhi = []
-                for k in range(len(xdim)):
-                    domainerlo.append( int(ptioff[k] - 1) )
-                    domainerhi.append( int(ptioff[k] + 1) )
-                loi = ants.crop_indices( x, tuple(domainerlo), tuple(domainerhi) )
-                mim = ants.copy_image_info(loi,mim)
-                return ants.resample_image_to_target( x, mim )
 
     registration = True
     cit168seg = t1 * 0
@@ -1716,9 +1942,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     ##### deep_nbm basal forebrain parcellation
     deep_bf = deep_nbm( img,
-        get_data("ch13_weights",target_extension='.h5'),
         get_data("nbm3_weights",target_extension='.h5'),
-        binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
+        csfquantile=0.25, aged_template=True )
 
     if verbose:
         print("deep CIT168")
