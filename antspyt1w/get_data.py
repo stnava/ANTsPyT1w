@@ -32,7 +32,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=34, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=35, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -274,12 +274,14 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
     template = ants.crop_image( template )
     np.random.seed(int(random_state))
     nvox = template.shape
-    X = np.random.rand( nBasis+1, myproduct( nvox ) )
-    u, s, randbasis = svds(X, k=nBasis)
-    if randbasis.shape[1] != myproduct(nvox):
-        raise ValueError("columns in rand basis do not match the nvox product")
+    # X = np.random.rand( nBasis+1, myproduct( nvox ) )
+    # u, s, randbasis = svds(X, k=nBasis)
+    # if randbasis.shape[1] != myproduct(nvox):
+    #    raise ValueError("columns in rand basis do not match the nvox product")
 
+    randbasis = np.random.rand( nBasis, myproduct( nvox ) )
     randbasis = np.transpose( randbasis )
+
     rbpos = randbasis.copy()
     rbpos[rbpos<0] = 0
     norm = ants.rank_intensity(x)
@@ -289,7 +291,8 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
         type_of_transform=type_of_transform,
         # aff_metric='GC',
         random_seed=1, initial_transform=trans['fwdtransforms'][0] )['warpedmovout']
-    imat = ants.get_neighborhood_in_mask(resamp, resamp*0+1,[0,0,0], boundary_condition='mean' )
+    mydelta = ants.from_numpy( ( resamp - template ).abs() )
+    imat = ants.get_neighborhood_in_mask( mydelta, mydelta*0+1,[0,0,0], boundary_condition='mean' )
     uproj = np.matmul(imat, randbasis)
     uprojpos = np.matmul(imat, rbpos)
     record = {}
