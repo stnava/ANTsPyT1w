@@ -320,7 +320,8 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
         type_of_transform=type_of_transform,
         # aff_metric='GC',
         random_seed=1, initial_transform=trans['fwdtransforms'][0] )['warpedmovout']
-    mydelta = ants.from_numpy( ( resamp - template ).abs() )
+#    mydelta = ants.from_numpy( ( resamp - template ).abs() )
+    mydelta = resamp - template
     imat = ants.get_neighborhood_in_mask( mydelta, mydelta*0+1,[0,0,0], boundary_condition='mean' )
     uproj = np.matmul(imat, randbasis)
     uprojpos = np.matmul(imat, rbpos)
