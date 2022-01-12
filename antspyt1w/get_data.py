@@ -301,6 +301,7 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
 
     """
     template = ants.crop_image( template )
+    template = ants.iMath( template, "Normalize" )
     np.random.seed(int(random_state))
     nvox = template.shape
     # X = np.random.rand( nBasis+1, myproduct( nvox ) )
@@ -313,7 +314,7 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
 
     rbpos = randbasis.copy()
     rbpos[rbpos<0] = 0
-    norm = ants.rank_intensity(x)
+    norm = ants.iMath( x, "Normalize" )
     trans = ants.registration( template, norm,
         type_of_transform='antsRegistrationSyNQuickRepro[t]' )
     resamp = ants.registration( template, norm,
