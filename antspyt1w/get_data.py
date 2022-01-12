@@ -417,6 +417,56 @@ def brain_extraction( x, dilation = 8.0, method = 'v1', verbose=False ):
     return bestlab
 
 
+
+def subdivide_labels( x, verbose = False ):
+    """
+    quick subdivision of the labels in a label image. can be applied recursively
+    to get several levels of subdivision.
+
+    x: input hemisphere label image from label_hemispheres
+
+    verbose: boolean
+
+    Example:
+
+    > x=ants.image_read( ants.get_data("ch2") )
+    > seg=ants.threshold_image(x,1,np.math.inf)
+    > for n in range(5):
+    >    seg=subdivide_labels(seg,verbose=True)
+    >    ants.plot(x,seg,axis=2,nslices=21,ncol=7,crop=True)
+
+    """
+    notzero=ants.threshold_image( x, 1, np.math.inf )
+    ulabs = np.unique( x.numpy() )
+    ulabs.sort()
+    newx = x * 0.0
+    for u in ulabs:
+        if u > 0:
+            temp = ants.threshold_image( x, u, u )
+            subimg = ants.crop_image( x, temp ) * 0
+            localshape=subimg.shape
+            axtosplit=np.argmax(localshape)
+            mid=int(np.round( localshape[axtosplit] /2 ))
+            nextlab = newx.max()+1
+            if verbose:
+                print( "label: " + str( u ) )
+                print( subimg )
+                print( nextlab )
+            if axtosplit == 1:
+                        subimg[:,0:mid,:]=subimg[:,0:mid,:]+nextlab
+                        subimg[:,(mid):(localshape[axtosplit]),:]=subimg[:,(mid):(localshape[axtosplit]),:]+nextlab+1
+            if axtosplit == 0:
+                        subimg[0:mid,:,:]=subimg[0:mid,:,:]+nextlab
+                        subimg[(mid):(localshape[axtosplit]),:,:]=subimg[(mid):(localshape[axtosplit]),:,:]+nextlab+1
+            if axtosplit == 2:
+                        subimg[:,:,0:mid]=subimg[:,:,0:mid]+nextlab
+                        subimg[:,:,(mid):(localshape[axtosplit])]=subimg[:,:,(mid):(localshape[axtosplit])]+nextlab+1
+            newx = newx + ants.resample_image_to_target( subimg, newx, interp_type='nearestNeighbor' ) * notzero
+    return newx
+
+
+
+
 def subdivide_hemi_label( x  ):
     """
     quick subdivision of the hemisphere label to go from a 2-label to a 4-label.
