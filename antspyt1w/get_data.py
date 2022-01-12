@@ -341,6 +341,11 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
     refbases = pd.read_csv( get_data( "reference_basis", target_extension='.csv' ) )
     df['loop_outlier_probability'] = loop_outlierness(  df, refbases,
         n_neighbors=refbases.shape[0] )[ refbases.shape[0] ]
+    mhdist = 0.0
+    if nBasis == 10:
+        temp = refbases.append( df.iloc[:,:nBasis] )
+        mhdist = mahalanobis_distance( temp )['distance'][ refbases.shape[0] ]
+    df['mhdist'] = mhdist
     return df
 
 
