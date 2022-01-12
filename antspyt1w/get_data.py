@@ -23,6 +23,7 @@ import functools
 from operator import mul
 from scipy.sparse.linalg import svds
 from PyNomaly import loop
+import scipy as sp
 
 import ants
 import antspynet
@@ -178,11 +179,39 @@ def map_intensity_to_dataframe( segmentation_type, intensity_image, segmentation
     mylgo = mylgo.rename(columns = {'LabelValue':'Label'})
     return pd.merge( mydf, mylgo, how='left', on=["Label"] )
 
-
-
 def myproduct(lst):
     return( functools.reduce(mul, lst) )
 
+def mahalanobis_distance( x ):
+    """
+    Calculate mahalanobis distance from a dataframe
+
+    Arguments
+    ---------
+    x : dataframe of random projections or other data
+
+    Returns
+    -------
+    dictionary of distances and outlierness categories
+
+    """
+    # M-Distance
+    x_minus_mu = x - np.mean(x)
+    cov = np.cov(x.values.T)                           #Covariance
+    inv_covmat = sp.linalg.inv(cov)                     #Inverse covariance
+    left_term = np.dot(x_minus_mu, inv_covmat)
+    mahal = np.dot(left_term, x_minus_mu.T)
+    md = np.sqrt(mahal.diagonal())
+    #Flag as outlier
+    outlier = []
+    #Cut-off point
+    C = np.sqrt(sp.stats.chi2.ppf((1-0.001), df=x.shape[1]))    #degrees of freedom = number of variables
+    for index, value in enumerate(md):
+        if value > C:
+            outlier.append(index)
+        else:
+            continue
+    return { "distance": md, "outlier": outlier }
 
 def loop_outlierness( random_projections, reference_projections,
     standardize=True, extent=3, n_neighbors=24, cluster_labels=None ):
