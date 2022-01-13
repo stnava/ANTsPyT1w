@@ -357,7 +357,7 @@ def random_basis_projection( x, template,
 
 
 
-def inspect_raw_t1( x, output_prefix ):
+def inspect_raw_t1( x, output_prefix, option='both' ):
     """
     Quick inspection and visualization of a raw T1 whole head image.
 
@@ -367,6 +367,8 @@ def inspect_raw_t1( x, output_prefix ):
     x : antsImage of t1 whole head
 
     output_prefix: a path and prefix for outputs
+
+    option : string both, brain or head
 
     Returns
     -------
@@ -384,53 +386,55 @@ def inspect_raw_t1( x, output_prefix ):
     rbb = pd.read_csv( get_data( "refbasis_brain", target_extension=".csv" ) )
 
     # whole head outlierness
-    t1 = ants.iMath( x, "TruncateIntensity",0.05, 0.99).iMath("Normalize")
-    lomask = ants.get_mask( t1, low_thresh=t1.mean()*0.1 )
-    t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
-    ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfn, crop=True )
-    bfn = antspynet.get_antsxnet_data( "S_template3" )
-    templateb = ants.image_read( bfn ).iMath("Normalize")
-    templatesmall = ants.resample_image( templateb, (2,2,2), use_voxels=False )
-    rbp = random_basis_projection( t1, templatesmall,
-        type_of_transform='Rigid',
-        refbases=rbh )
-    rbp.to_csv( csvfn )
-
-    # fix up the figure
-    looper=float(rbp['loop_outlier_probability'])
-    ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbp['mhdist']))
-    img = Image.open( pngfn ).copy()
-    plt.figure(dpi=300)
-    plt.imshow(img)
-    plt.text(20, 0, ttl, color="red", fontsize=12 )
-    plt.axis("off")
-    plt.subplots_adjust(0,0,1,1)
-    plt.savefig( pngfn, bbox_inches='tight',pad_inches = 0)
-    plt.close()
+    rbp=None
+    if option == 'both' or option == 'head':
+        t1 = ants.iMath( x, "TruncateIntensity",0.05, 0.99).iMath("Normalize")
+        lomask = ants.get_mask( t1, low_thresh=t1.mean()*0.1 )
+        t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
+        ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfn, crop=True )
+        bfn = antspynet.get_antsxnet_data( "S_template3" )
+        templateb = ants.image_read( bfn ).iMath("Normalize")
+        templatesmall = ants.resample_image( templateb, (2,2,2), use_voxels=False )
+        rbp = random_basis_projection( t1, templatesmall,
+            type_of_transform='Rigid',
+            refbases=rbh )
+        rbp.to_csv( csvfn )
+        # fix up the figure
+        looper=float(rbp['loop_outlier_probability'])
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbp['mhdist']))
+        img = Image.open( pngfn ).copy()
+        plt.figure(dpi=300)
+        plt.imshow(img)
+        plt.text(20, 0, ttl, color="red", fontsize=12 )
+        plt.axis("off")
+        plt.subplots_adjust(0,0,1,1)
+        plt.savefig( pngfn, bbox_inches='tight',pad_inches = 0)
+        plt.close()
 
     # same for brain
-    t1 = ants.iMath( x, "TruncateIntensity",0.001, 0.999).iMath("Normalize")
-    lomask = antspynet.brain_extraction( t1, "t1" )
-    t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
-    ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfnb, crop=True )
-    templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
-    templatesmall = ants.resample_image( templateb, (2,2,2), use_voxels=False )
-    rbpb = random_basis_projection( t1,
-        templatesmall,
-        type_of_transform='Rigid',
-        refbases=rbb )
-    rbpb.to_csv( csvfnb )
-
-    looper = float( rbpb['loop_outlier_probability'] )
-    ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist']))
-    img = Image.open( pngfnb ).copy()
-    plt.figure(dpi=300)
-    plt.imshow(img)
-    plt.text(20, 0, ttl, color="red", fontsize=12 )
-    plt.axis("off")
-    plt.subplots_adjust(0,0,1,1)
-    plt.savefig( pngfnb, bbox_inches='tight',pad_inches = 0)
-    plt.close()
+    rbpb=None
+    if option == 'both' or option == 'brain':
+        t1 = ants.iMath( x, "TruncateIntensity",0.001, 0.999).iMath("Normalize")
+        lomask = antspynet.brain_extraction( t1, "t1" )
+        t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
+        ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfnb, crop=True )
+        templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
+        templatesmall = ants.resample_image( templateb, (2,2,2), use_voxels=False )
+        rbpb = random_basis_projection( t1,
+            templatesmall,
+            type_of_transform='Rigid',
+            refbases=rbb )
+        rbpb.to_csv( csvfnb )
+        looper = float( rbpb['loop_outlier_probability'] )
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist']))
+        img = Image.open( pngfnb ).copy()
+        plt.figure(dpi=300)
+        plt.imshow(img)
+        plt.text(20, 0, ttl, color="red", fontsize=12 )
+        plt.axis("off")
+        plt.subplots_adjust(0,0,1,1)
+        plt.savefig( pngfnb, bbox_inches='tight',pad_inches = 0)
+        plt.close()
 
     return {
         "head": rbp,
