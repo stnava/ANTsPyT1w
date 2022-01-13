@@ -7,3 +7,5 @@ tensorflow>=2.2
 pathlib
 PyNomaly>=3.0
 scipy
+pillow
+matplotlib
