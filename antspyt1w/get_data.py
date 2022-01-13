@@ -359,7 +359,9 @@ def random_basis_projection( x, template,
 
 def inspect_raw_t1( x, output_prefix, option='both' ):
     """
-    Quick inspection and visualization of a raw T1 whole head image.
+    Quick inspection and visualization of a raw T1 whole head image,
+    whole head and brain or both.  The reference data was developed with
+    option both and this will impact results.
 
     Arguments
     ---------
@@ -390,7 +392,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
     if option == 'both' or option == 'head':
         t1 = ants.iMath( x, "TruncateIntensity",0.05, 0.99).iMath("Normalize")
         lomask = ants.get_mask( t1, low_thresh=t1.mean()*0.1 )
-        t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
+        t1 = ants.rank_intensity( t1 * lomask, mask=lomask, get_mask=True )
         ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfn, crop=True )
         bfn = antspynet.get_antsxnet_data( "S_template3" )
         templateb = ants.image_read( bfn ).iMath("Normalize")
@@ -414,9 +416,13 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
     # same for brain
     rbpb=None
     if option == 'both' or option == 'brain':
-        t1 = ants.iMath( x, "TruncateIntensity",0.001, 0.999).iMath("Normalize")
-        lomask = antspynet.brain_extraction( t1, "t1" )
-        t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
+        if option == 'both':
+            t1 = ants.iMath( x, "TruncateIntensity",0.001, 0.999).iMath("Normalize")
+            lomask = antspynet.brain_extraction( t1, "t1" )
+            t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
+        else:
+            t1 = ants.iMath( x, "Normalize" )
+            t1 = ants.rank_intensity( t1, get_mask=True )
         ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfnb, crop=True )
         templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
         templatesmall = ants.resample_image( templateb, (2,2,2), use_voxels=False )
