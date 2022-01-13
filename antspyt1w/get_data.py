@@ -24,6 +24,7 @@ from operator import mul
 from scipy.sparse.linalg import svds
 from PyNomaly import loop
 import scipy as sp
+import matplotlib.pyplot as plt
 from PIL import Image
 
 import ants
