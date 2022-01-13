@@ -270,7 +270,9 @@ def loop_outlierness( random_projections, reference_projections,
 
 
 
-def random_basis_projection( x, template, type_of_transform='Similarity',
+def random_basis_projection( x, template,
+    type_of_transform='Similarity',
+    refbases = None,
     nBasis=10, random_state = 99 ):
     """
     Produce unbiased data descriptors for a given image which can be used
@@ -286,6 +288,8 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
     template : antsImage reference template
 
     type_of_transform: one of Translation, Rigid, Similarity, Affine
+
+    refbases : reference bases for outlierness calculations
 
     nBasis : number of variables to derive
 
@@ -309,9 +313,7 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
     # if randbasis.shape[1] != myproduct(nvox):
     #    raise ValueError("columns in rand basis do not match the nvox product")
 
-    randbasis = np.random.rand( nBasis, myproduct( nvox ) )
-    randbasis = np.transpose( randbasis )
-
+    randbasis = np.random.rand( myproduct( nvox ), nBasis  )
     rbpos = randbasis.copy()
     rbpos[rbpos<0] = 0
     norm = ants.iMath( x, "Normalize" )
@@ -339,7 +341,8 @@ def random_basis_projection( x, template, type_of_transform='Similarity',
         record[name] = i
     df = pd.DataFrame(record, index=[0])
 
-    refbases = pd.read_csv( get_data( "reference_basis", target_extension='.csv' ) )
+    if refbases is None:
+        refbases = pd.read_csv( get_data( "reference_basis", target_extension='.csv' ) )
     df['loop_outlier_probability'] = loop_outlierness(  df, refbases,
         n_neighbors=refbases.shape[0] )[ refbases.shape[0] ]
     mhdist = 0.0
