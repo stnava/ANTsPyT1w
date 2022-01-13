@@ -385,7 +385,7 @@ def inspect_raw_t1( x, output_prefix ):
 
     # whole head outlierness
     t1 = ants.iMath( x, "TruncateIntensity",0.05, 0.99).iMath("Normalize")
-    lomask = ants.get_mask( t1, low_thresh=t1.mean()*0.25 )
+    lomask = ants.get_mask( t1, low_thresh=t1.mean()*0.1 )
     t1 = ants.rank_intensity( t1 * lomask, get_mask=True )
     ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfn, crop=True )
     bfn = antspynet.get_antsxnet_data( "S_template3" )
