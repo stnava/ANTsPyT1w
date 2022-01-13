@@ -378,8 +378,8 @@ def inspect_raw_t1( x, output_prefix ):
     pngfnb = output_prefix + "_brain.png"
 
     # reference bases
-    rbh = pd.read_csv( get_data( "refbasis_head", target_extension=".csv" )
-    rbb = pd.read_csv( get_data( "refbasis_brain", target_extension=".csv" )
+    rbh = pd.read_csv( get_data( "refbasis_head", target_extension=".csv" ) )
+    rbb = pd.read_csv( get_data( "refbasis_brain", target_extension=".csv" ) )
 
     # whole head outlierness
     t1 = ants.iMath( x, "TruncateIntensity",0.05, 0.99).iMath("Normalize")
