@@ -392,7 +392,7 @@ def inspect_raw_t1( x, output_prefix ):
     rbp = random_basis_projection( t1, templatesmall,
         type_of_transform='Rigid',
         refbases=rbh )
-    rbp.to_csv( outfn )
+    rbp.to_csv( csvfn )
 
     # fix up the figure
     looper=float(rbp['loop_outlier_probability'])
@@ -417,7 +417,7 @@ def inspect_raw_t1( x, output_prefix ):
         templatesmall,
         type_of_transform='Rigid',
         refbases=rbb )
-    rbpb.to_csv( outfnb )
+    rbpb.to_csv( csvfnb )
 
     looper = float( rbpb['loop_outlier_probability'] )
     ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist']))
