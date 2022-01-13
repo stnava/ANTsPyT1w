@@ -361,7 +361,9 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
     """
     Quick inspection and visualization of a raw T1 whole head image,
     whole head and brain or both.  The reference data was developed with
-    option both and this will impact results.
+    option both and this will impact results.  For the head image, outlierness
+    is estimated vi a quick extraction from background.  Variability in this
+    extraction (Otsu) may lead to reliability issues.
 
     Arguments
     ---------
@@ -390,13 +392,12 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
     # whole head outlierness
     rbp=None
     if option == 'both' or option == 'head':
-        t1 = ants.iMath( x, "TruncateIntensity",0.05, 0.99).iMath("Normalize")
-        lomask = ants.get_mask( t1, low_thresh=t1.mean()*0.1 )
-        t1 = ants.rank_intensity( t1 * lomask, mask=lomask, get_mask=True )
-        ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfn, crop=True )
         bfn = antspynet.get_antsxnet_data( "S_template3" )
         templateb = ants.image_read( bfn ).iMath("Normalize")
         templatesmall = ants.resample_image( templateb, (2,2,2), use_voxels=False )
+        lomask = ants.threshold_image( x, "Otsu", 2 ).threshold_image(1,2)
+        t1 = ants.rank_intensity( x * lomask, mask=lomask, get_mask=False )
+        ants.plot( t1, axis=2, nslices=21, ncol=7, filename=pngfn, crop=True )
         rbp = random_basis_projection( t1, templatesmall,
             type_of_transform='Rigid',
             refbases=rbh )
