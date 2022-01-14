@@ -2132,7 +2132,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     ##### deep_nbm basal forebrain parcellation
     deep_bf = deep_nbm( img,
-        get_data("nbm3_weights",target_extension='.h5'),
+        get_data("deep_nbm_rank",target_extension='.h5'),
         csfquantile=0.25, aged_template=True )
 
     if verbose:
