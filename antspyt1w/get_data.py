@@ -244,25 +244,21 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None ):
     else:
         msk = mask.clone()
     rnk=ants.rank_intensity(x,msk,True)
-    rnk=ants.crop_image(rnk, msk)
-    msk=ants.crop_image(msk, msk)
     npatchvox = myproduct( radder )
     ptch = antspynet.extract_image_patches( rnk, tuple(radder), mask_image=msk,
         max_number_of_patches = nptch, return_as_array=False )
     newptch=[]
     for k in range(len(ptch)):
-      if list(ptch[k].shape) == radder:
-          newptch.append( np.reshape( ptch[k], npatchvox ) )
+          if list(ptch[k].shape) == radder:
+              newptch.append( np.reshape( ptch[k], npatchvox ) )
     ptch = newptch
     X = np.stack( ptch )
-    lown = float(n) # min(X.shape)
-    u, s, v = svds(X , min(X.shape) - 1 )
-    thespectrum = s[::-1]
+    # u, s, v = svds(X , min(X.shape)-1 )
+    thespectrum = np.linalg.svd( X, compute_uv=False )
     spectralsum = thespectrum.sum()
-    targetspec = spectralsum * 0.9
+    targetspec = spectralsum * evdepth
     spectralcumsum = np.cumsum( thespectrum )
-    return np.argmin(  abs( spectralcumsum - 0.9 * spectralsum ) )/float(lown)
-
+    return np.argmin(  abs( spectralcumsum - evdepth * spectralsum ) )/len(thespectrum)
 
 def loop_outlierness( random_projections, reference_projections,
     standardize=True, extent=3, n_neighbors=24, cluster_labels=None ):
