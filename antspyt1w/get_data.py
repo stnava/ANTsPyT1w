@@ -479,7 +479,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
             refbases=rbb )
         rbpb.to_csv( csvfnb )
         looper = float( rbpb['loop_outlier_probability'] )
-        evratio = patch_eigenvalue_ratio( t1, 512, [20,20,20], evdepth = 0.9 )
+        rbpb['evratio'] = patch_eigenvalue_ratio( t1, 512, [20,20,20], evdepth = 0.9 )
         ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist']))
         img = Image.open( pngfnb ).copy()
         plt.figure(dpi=300)
@@ -490,13 +490,10 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         plt.savefig( pngfnb, bbox_inches='tight',pad_inches = 0)
         plt.close()
 
-
     return {
         "head": rbp,
-        "brain": rbpb,
-        "evratio":evratio
+        "brain": rbpb
         }
-
 
 
 def brain_extraction( x, dilation = 8.0, method = 'v1', verbose=False ):
