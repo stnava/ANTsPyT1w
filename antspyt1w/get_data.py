@@ -215,6 +215,55 @@ def mahalanobis_distance( x ):
             continue
     return { "distance": md, "outlier": outlier }
 
+
+def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None ):
+    """
+    Patch-based eigenvalue ratio calculation.
+
+    Arguments
+    ---------
+    x : input image - if t1, likely better if brain extracted
+
+    n : number of patches
+
+    radii : list of radius values
+
+    evdepth : value in zero to one
+
+    mask : optional antsImage
+
+    Returns
+    -------
+    an eigenvalue ratio in the range of [0,1]
+
+    """
+    nptch=n
+    radder=radii
+    if mask is None:
+        msk=ants.threshold_image( x, "Otsu", 1 )
+    else:
+        msk = mask.clone()
+    rnk=ants.rank_intensity(x,msk,True)
+    rnk=ants.crop_image(rnk, msk)
+    msk=ants.crop_image(msk, msk)
+    npatchvox = myproduct( radder )
+    ptch = antspynet.extract_image_patches( rnk, tuple(radder), mask_image=msk,
+        max_number_of_patches = nptch, return_as_array=False )
+    newptch=[]
+    for k in range(len(ptch)):
+      if list(ptch[k].shape) == radder:
+          newptch.append( np.reshape( ptch[k], npatchvox ) )
+    ptch = newptch
+    X = np.stack( ptch )
+    lown = float(n) # min(X.shape)
+    u, s, v = svds(X , min(X.shape) - 1 )
+    thespectrum = s[::-1]
+    spectralsum = thespectrum.sum()
+    targetspec = spectralsum * 0.9
+    spectralcumsum = np.cumsum( thespectrum )
+    return np.argmin(  abs( spectralcumsum - 0.9 * spectralsum ) )/float(lown)
+
+
 def loop_outlierness( random_projections, reference_projections,
     standardize=True, extent=3, n_neighbors=24, cluster_labels=None ):
     """
@@ -416,6 +465,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
 
     # same for brain
     rbpb=None
+    evratio=None
     if option == 'both' or option == 'brain':
         if option == 'both':
             t1 = ants.iMath( x, "TruncateIntensity",0.001, 0.999).iMath("Normalize")
@@ -433,6 +483,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
             refbases=rbb )
         rbpb.to_csv( csvfnb )
         looper = float( rbpb['loop_outlier_probability'] )
+        evratio = patch_eigenvalue_ratio( t1, 512, [20,20,20], evdepth = 0.9 )
         ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist']))
         img = Image.open( pngfnb ).copy()
         plt.figure(dpi=300)
@@ -443,9 +494,11 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         plt.savefig( pngfnb, bbox_inches='tight',pad_inches = 0)
         plt.close()
 
+
     return {
         "head": rbp,
-        "brain": rbpb
+        "brain": rbpb,
+        "evratio":evratio
         }
 
 

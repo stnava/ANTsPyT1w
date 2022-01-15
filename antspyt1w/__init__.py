@@ -29,5 +29,6 @@ from .get_data import subdivide_hemi_label
 from .get_data import special_crop
 from .get_data import loop_outlierness
 from .get_data import mahalanobis_distance
+from .get_data import patch_eigenvalue_ratio
 from .get_data import subdivide_labels
 from .get_data import inspect_raw_t1
