@@ -247,11 +247,8 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None ):
     npatchvox = myproduct( radder )
     ptch = antspynet.extract_image_patches( rnk, tuple(radder), mask_image=msk,
         max_number_of_patches = nptch, return_as_array=False )
-    # newptch=[]
-    # for k in range(len(ptch)):
-    #      if list(ptch[k].shape) == radder:
-    #          newptch.append( np.reshape( ptch[k], npatchvox ) )
-    # ptch = newptch
+    for k in range(len(ptch)):
+        ptch[k] = np.reshape( ptch[k], npatchvox )
     X = np.stack( ptch )
     # u, s, v = svds(X , min(X.shape)-1 )
     thespectrum = np.linalg.svd( X, compute_uv=False )
