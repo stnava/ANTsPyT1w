@@ -481,7 +481,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         rbpb.to_csv( csvfnb )
         looper = float( rbpb['loop_outlier_probability'] )
         myevr = float( rbpb['evratio'] )
-        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + "EVR: " + "{:0.4f}".format(myevr)
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + " EVR: " + "{:0.4f}".format(myevr)
         img = Image.open( pngfnb ).copy()
         plt.figure(dpi=300)
         plt.imshow(img)
