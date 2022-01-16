@@ -26,6 +26,7 @@ from PyNomaly import loop
 import scipy as sp
 import matplotlib.pyplot as plt
 from PIL import Image
+import scipy.stats as ss
 
 import ants
 import antspynet
@@ -216,7 +217,7 @@ def mahalanobis_distance( x ):
     return { "distance": md, "outlier": outlier }
 
 
-def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None ):
+def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=False ):
     """
     Patch-based eigenvalue ratio calculation.
 
@@ -231,6 +232,8 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None ):
     evdepth : value in zero to one
 
     mask : optional antsImage
+
+    standardize : boolean standardizes the patch matrix if True
 
     Returns
     -------
@@ -250,6 +253,8 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None ):
     for k in range(len(ptch)):
         ptch[k] = np.reshape( ptch[k], npatchvox )
     X = np.stack( ptch )
+    if standardize:
+        X = np.array(ss.zscore(X))
     # u, s, v = svds(X , min(X.shape)-1 )
     thespectrum = np.linalg.svd( X, compute_uv=False )
     spectralsum = thespectrum.sum()
