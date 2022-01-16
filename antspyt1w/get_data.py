@@ -402,6 +402,7 @@ def random_basis_projection( x, template,
         temp = refbases.append( df.iloc[:,:nBasis] )
         mhdist = mahalanobis_distance( temp )['distance'][ refbases.shape[0] ]
     df['mhdist'] = mhdist
+    df['templateL1']=mydelta.abs().mean()
     return df
 
 
