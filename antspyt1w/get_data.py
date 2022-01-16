@@ -233,7 +233,7 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=F
 
     mask : optional antsImage
 
-    standardize : boolean standardizes the patch matrix if True
+    standardize : boolean standardizes the patch matrix if True (subtract mean)
 
     Returns
     -------
@@ -254,7 +254,7 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=F
         ptch[k] = np.reshape( ptch[k], npatchvox )
     X = np.stack( ptch )
     if standardize:
-        X = np.array(ss.zscore(X))
+        X = X - X.mean(axis=0, keepdims=True)
     # u, s, v = svds(X , min(X.shape)-1 )
     thespectrum = np.linalg.svd( X, compute_uv=False )
     spectralsum = thespectrum.sum()
