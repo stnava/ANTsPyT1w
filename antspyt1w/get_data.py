@@ -365,7 +365,7 @@ def random_basis_projection( x, template,
     # if randbasis.shape[1] != myproduct(nvox):
     #    raise ValueError("columns in rand basis do not match the nvox product")
 
-    randbasis = np.random.rand( myproduct( nvox ), nBasis  )
+    randbasis = np.random.randn( myproduct( nvox ), nBasis  )
     rbpos = randbasis.copy()
     rbpos[rbpos<0] = 0
     norm = ants.iMath( x, "Normalize" )
