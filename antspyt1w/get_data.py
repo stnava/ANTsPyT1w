@@ -10,6 +10,7 @@ __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
 
 from pathlib import Path
 import os
+from os.path import exists
 import pandas as pd
 import math
 import os.path
@@ -36,7 +37,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=38, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=39, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -406,6 +407,106 @@ def random_basis_projection( x, template,
     return df
 
 
+def resnet_grader( x ):
+    """
+    Supervised grader / scoring of t1 brain
+
+    Arguments
+    ---------
+
+    x : antsImage of t1 brain
+
+    Returns
+    -------
+    two letter grades
+
+    """
+
+    if not exists( os.path.expanduser( "~/.antspyt1w/resnet_grader.h5" ) ):
+        return None
+
+    weights_filename=get_data( 'resnet_grader', target_extension='.h5' )
+
+    mdl = antspynet.create_resnet_model_3d( [None,None,None,1],
+        lowest_resolution = 32,
+        number_of_classification_labels = 4,
+        cardinality = 1,
+        squeeze_and_excite = False )
+    mdl.load_weights( weights_filename )
+
+
+    t1 = ants.iMath( x,  "Normalize" )
+    bxt = ants.threshold_image( t1, 0.01, 1.0 )
+    t1 = ants.rank_intensity( t1, mask=bxt, get_mask=False )
+    templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
+    templateb = ants.crop_image( templateb ).resample_image( [1,1,1] )
+    templateb = antspynet.pad_image_by_factor( templateb, 8 )
+    templatebsmall = ants.resample_image( templateb, [2,2,2] )
+    reg = ants.registration( templatebsmall, t1, 'Similarity', verbose=False )
+    ilist = list()
+    refimg=templateb
+    ilist.append( [refimg] )
+    nsim = 16
+    uu = antspynet.randomly_transform_image_data( refimg, ilist,
+            number_of_simulations = nsim,
+            transform_type='scaleShear', sd_affine=0.075 )
+    fwdaffgd = ants.read_transform( reg['fwdtransforms'][0])
+    scoreNums = np.zeros( 4 )
+    scoreNums[3]=0
+    scoreNums[2]=1
+    scoreNums[1]=2
+    scoreNums[0]=3
+    scoreNums=scoreNums.reshape( [4,1] )
+
+    def get_grade( score, probs ):
+        grade='f'
+        if score >= 2.25:
+                grade='a'
+        elif score >= 1.5:
+                grade='b'
+        elif score >= 0.75:
+                grade='c'
+        probgradeindex = np.argmax( probs )
+        probgrade = ['a','b','c','f'][probgradeindex]
+        return [grade, probgrade, float( score )]
+
+    gradelistNum = []
+    gradelistProb = []
+    gradeScore = []
+    for k in range( nsim ):
+            simtx = uu['simulated_transforms'][k]
+            cmptx = ants.compose_ants_transforms( [simtx,fwdaffgd] ) # good
+            subjectsim = ants.apply_ants_transform_to_image( cmptx, t1, refimg, interpolation='linear' )
+            subjectsim = ants.add_noise_to_image( subjectsim, 'additivegaussian', (0,0.01) )
+            xarr = subjectsim.numpy()
+            newshape = list( xarr.shape )
+            newshape = [1] + newshape + [1]
+            xarr = np.reshape(  xarr, newshape  )
+            preds = mdl.predict( xarr )
+            predsnum = tf.matmul(  preds, scoreNums )
+            locgrades = get_grade( predsnum, preds )
+            gradelistNum.append( locgrades[0] )
+            gradelistProb.append( locgrades[1] )
+            gradeScore.append( locgrades[2] )
+
+    def most_frequent(List):
+        return max(set(List), key = List.count)
+
+    mydf = pd.DataFrame( {
+            "NumericGrade": gradelistNum,
+            "ProbGrade": gradelistProb,
+            "NumericScore": gradeScore,
+            'grade': most_frequent( gradelistProb )
+        })
+
+    smalldf = pd.DataFrame( {
+        'gradeLetter':  [mydf.grade[0]],
+        'gradeNum': [mydf.NumericScore.mean()]
+        }, index=[0] )
+    # print( mydf.Num.value_counts() )
+    # print( mydf.Prob.value_counts() )
+    return smalldf
+
 
 
 def inspect_raw_t1( x, output_prefix, option='both' ):
@@ -484,10 +585,12 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
             type_of_transform='Rigid',
             refbases=rbb )
         rbpb['evratio'] = patch_eigenvalue_ratio( t1, 512, [20,20,20], evdepth = 0.9 )
+        rbpb['resnetGrade'] = resnet_grader( t1 ).gradeNum[0]
         rbpb.to_csv( csvfnb )
         looper = float( rbpb['loop_outlier_probability'] )
         myevr = float( rbpb['evratio'] )
-        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + " EVR: " + "{:0.4f}".format(myevr)
+        mygrd = float( rbpb['resnetGrade'] )
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + " EVR: " + "{:0.4f}".format(myevr) + " grade: " + "{:0.4f}".format(mygrd)
         img = Image.open( pngfnb ).copy()
         plt.figure(dpi=300)
         plt.imshow(img)

@@ -32,3 +32,4 @@ from .get_data import mahalanobis_distance
 from .get_data import patch_eigenvalue_ratio
 from .get_data import subdivide_labels
 from .get_data import inspect_raw_t1
+from .get_data import resnet_grader
