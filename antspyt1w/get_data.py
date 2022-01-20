@@ -37,7 +37,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=40, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=41, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -590,7 +590,8 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         looper = float( rbpb['loop_outlier_probability'] )
         myevr = float( rbpb['evratio'] )
         mygrd = float( rbpb['resnetGrade'] )
-        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + " EVR: " + "{:0.4f}".format(myevr) + " grade: " + "{:0.4f}".format(mygrd)
+        myl1 = float( rbpb['templateL1'] )
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + " EVR: " + "{:0.4f}".format(myevr) + " TL1: " + "{:0.4f}".format(myl1) + " grade: " + "{:0.4f}".format(mygrd)
         img = Image.open( pngfnb ).copy()
         plt.figure(dpi=300)
         plt.imshow(img)
