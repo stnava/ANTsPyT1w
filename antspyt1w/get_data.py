@@ -532,6 +532,9 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
 
     """
 
+    if x.dimension != 3:
+        raise ValueError('inspect_raw_t1: input image should be 3-dimensional')
+
     csvfn = output_prefix + "_head.csv"
     pngfn = output_prefix + "_head.png"
     csvfnb = output_prefix + "_brain.csv"
@@ -2132,6 +2135,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         - dataframes : summary data frames
 
     """
+    if x.dimension != 3:
+        raise ValueError('hierarchical: input image should be 3-dimensional')
+
     if verbose:
         print("Read")
     tfn = get_data('T_template0', target_extension='.nii.gz' )
