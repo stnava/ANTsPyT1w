@@ -606,7 +606,9 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
 
     return {
         "head": rbp,
-        "brain": rbpb
+        "head_image": pngfn,
+        "brain": rbpb,
+        "brain_image": pngfnb,
         }
 
 
