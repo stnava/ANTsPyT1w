@@ -612,7 +612,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         }
 
 
-def brain_extraction( x, dilation = 8.0, method = 'v1', verbose=False ):
+def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
     """
     quick brain extraction for individual images
 
