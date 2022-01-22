@@ -441,7 +441,7 @@ def resnet_grader( x, weights_filename = None ):
 
     t1 = ants.iMath( x,  "Normalize" )
     bxt = ants.threshold_image( t1, 0.01, 1.0 )
-    t1 = ants.rank_intensity( t1, mask=bxt, get_mask=False )
+    t1 = ants.rank_intensity( t1, mask=bxt, get_mask=True )
     templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
     templateb = ants.crop_image( templateb ).resample_image( [1,1,1] )
     templateb = antspynet.pad_image_by_factor( templateb, 8 )
