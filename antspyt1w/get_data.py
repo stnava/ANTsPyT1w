@@ -407,7 +407,7 @@ def random_basis_projection( x, template,
     return df
 
 
-def resnet_grader( x ):
+def resnet_grader( x, weights_filename = None ):
     """
     Supervised grader / scoring of t1 brain
 
@@ -416,16 +416,20 @@ def resnet_grader( x ):
 
     x : antsImage of t1 brain
 
+    weights_filename : optional weights filename
+
     Returns
     -------
     two letter grades
 
     """
 
-    if not exists( os.path.expanduser( "~/.antspyt1w/resnet_grader.h5" ) ):
-        return None
+    if weights_filename is None:
+        weights_filename=get_data( 'resnet_grader', target_extension='.h5' )
 
-    weights_filename=get_data( 'resnet_grader', target_extension='.h5' )
+    if not exists( weights_filename ):
+        print("resnet_grader weights do not exist: " + weights_filename )
+        return None
 
     mdl = antspynet.create_resnet_model_3d( [None,None,None,1],
         lowest_resolution = 32,
