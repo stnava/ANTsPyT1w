@@ -439,7 +439,7 @@ def resnet_grader( x, weights_filename = None ):
     mdl.load_weights( weights_filename )
 
 
-    t1 = ants.iMath( x,  "Normalize" )
+    t1 = ants.iMath( x - x.min(),  "Normalize" )
     bxt = ants.threshold_image( t1, 0.01, 1.0 )
     t1 = ants.rank_intensity( t1, mask=bxt, get_mask=True )
     templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
@@ -539,6 +539,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
     if x.dimension != 3:
         raise ValueError('inspect_raw_t1: input image should be 3-dimensional')
 
+    x = ants.iMath( x, "Normalize" )
     csvfn = output_prefix + "_head.csv"
     pngfn = output_prefix + "_head.png"
     csvfnb = output_prefix + "_brain.csv"
@@ -2162,11 +2163,11 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
     if imgbxt is None:
         probablySR = False
-        imgbxt = brain_extraction( x )
-        img = preprocess_intensity( x, imgbxt )
+        imgbxt = brain_extraction( ants.iMath( x, "Normalize" ) )
+        img = preprocess_intensity( ants.iMath( x, "Normalize" ), imgbxt )
     else:
         probablySR = True
-        img = ants.image_clone( x )
+        img = ants.iMath( x, "Normalize" )
 
     if verbose:
         print("rbp")
