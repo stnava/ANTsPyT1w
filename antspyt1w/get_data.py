@@ -1491,7 +1491,10 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
 
 
 
-def deep_nbm( t1, nbm_weights, deform=False, aged_template=False,
+def deep_nbm( t1,
+    nbm_weights,
+    binary_mask=None,
+    deform=False, aged_template=False,
     csfquantile=None, verbose=False ):
 
     """
@@ -1502,6 +1505,8 @@ def deep_nbm( t1, nbm_weights, deform=False, aged_template=False,
     t1 : T1-weighted neuroimage antsImage - already brain extracted
 
     nbm_weights : string weight file for parcellating unet
+
+    binary_mask : will restrict output to this mask
 
     deform : boolean to correct for image deformation
 
@@ -1550,13 +1555,21 @@ def deep_nbm( t1, nbm_weights, deform=False, aged_template=False,
     reflection_labels = [0,2,1,6,7,8,3,4,5]
     crop_size = [144,96,64]
 
-    def nbmpreprocess( img, pt_labels, group_labels, csfquantile=None, returndef=False ):
-        imgr = ants.rank_intensity( img )
-        masker=None
-        if csfquantile is not None:
-            masker = ants.threshold_image( img, np.quantile(img[img>1e-4], csfquantile ), 1e9 )
+    def nbmpreprocess( img, pt_labels, group_labels, masker=None, csfquantile=None, returndef=False ):
+
+        if masker is None:
+            imgr = ants.rank_intensity( img )
+        else:
+            imgr = ants.rank_intensity( img, mask = masker )
+
+        if csfquantile is not None and masker is None:
+            masker = ants.threshold_image( imgr, np.quantile(imgr[imgr>1e-4], csfquantile ), 1e9 )
+
+        if masker is not None:
             imgr = imgr * masker
-        reg = ants.registration( refimgsmall, imgr, 'SyN',
+
+        imgrsmall = ants.resample_image( imgr, [1,1,1] )
+        reg = ants.registration( refimgsmall, imgrsmall, 'antsRegistrationSyNQuickRepro[s]',
             reg_iterations = [200,200,20],
             verbose=False )
         if not returndef:
@@ -2301,15 +2314,16 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         print("NBM")
 
     ##### deep_nbm basal forebrain parcellation
-    deep_bf = deep_nbm( img,
+    braintissuemask =  ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
+    deep_bf = deep_nbm( img * braintissuemask,
         get_data("deep_nbm_rank",target_extension='.h5'),
-        csfquantile=0.25, aged_template=True )
+        csfquantile=None, aged_template=True )
 
     if verbose:
         print("deep CIT168")
     ##### deep CIT168 segmentation - relatively fast
     deep_cit = deep_cit168( img,  priors = cit168lab,
-        binary_mask = ants.threshold_image( myparc['tissue_segmentation'], 2, 6 ) )
+        binary_mask = braintissuemask )
 
     if verbose:
         print( "SN-specific segmentation" )
