@@ -875,6 +875,12 @@ def deep_tissue_segmentation( x, template=None, registration_map=None ):
             interpolator='linear',
         )
 
+    msk = ants.threshold_image( x, 0.03, 1 )
+    aap = ants.atropos( x, msk, i=dapper[myk][1:(myn)], m='[0.0,1x1x1]', c = '[1,0]', priorweight=0.25, verbose=1  )
+
+    dapper['segmentation_image'] = aap['segmentation']
+    dapper['probability_images'] = aap['probabilityimages']
+
     return dapper
 
 def deep_brain_parcellation(
