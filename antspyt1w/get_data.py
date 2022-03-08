@@ -820,7 +820,7 @@ def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     return( ants.apply_transforms( x, templateLR, reg['fwdtransforms'],
         interpolator='genericLabel') )
 
-def deep_tissue_segmentation( x, template=None, registration_map=None ):
+def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_prior=0.5 ):
     """
     modified slightly more efficient deep atropos that also handles the
     extra CSF issue.  returns segmentation and probability images. see
@@ -831,6 +831,8 @@ def deep_tissue_segmentation( x, template=None, registration_map=None ):
     template: MNI space template, should be "croppedMni152" or "biobank"
 
     registration_map: pre-existing output from ants.registration
+
+    atropos_prior: prior weight for atropos post-processing
 
     """
     if template is None:
@@ -876,7 +878,8 @@ def deep_tissue_segmentation( x, template=None, registration_map=None ):
         )
 
     msk = ants.threshold_image( x, 0.03, 1 )
-    aap = ants.atropos( x, msk, i=dapper[myk][1:(myn)], m='[0.0,1x1x1]', c = '[1,0]', priorweight=0.25, verbose=1  )
+    aap = ants.atropos( x, msk, i=dapper[myk][1:(myn)], m='[0.0,1x1x1]',
+        c = '[1,0]', priorweight=atropos_prior, verbose=1  )
 
     dapper['segmentation_image'] = aap['segmentation']
     dapper['probability_images'] = aap['probabilityimages']
