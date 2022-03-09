@@ -833,13 +833,13 @@ def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_p
     registration_map: pre-existing output from ants.registration
 
     atropos_prior: prior weight for atropos post-processing; set to None if you
-        do not want to use this.
+        do not want to use this.  will modify the CSF, GM and WM segmentation to
+        better fit the image intensity at the resolution of the input image.
 
     """
     if template is None:
-        bbt = ants.image_read( antspynet.get_antsxnet_data( "biobank" ) )
+        bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
         template = antspynet.brain_extraction( bbt, "t1" ) * bbt
-        qaff=ants.registration( bbt, ants.rank_intensity(x), "AffineFast", aff_metric='GC', random_seed=1 )
 
     bbtr = ants.rank_intensity( template )
     if registration_map is None:
@@ -847,7 +847,6 @@ def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_p
             bbtr,
             ants.rank_intensity(x),
             "antsRegistrationSyNQuickRepro[a]",
-            aff_iterations = (1500,500,0,0),
             random_seed=1 )
 
     mywarped = ants.apply_transforms( template, x,
@@ -858,7 +857,7 @@ def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_p
 
     myk='segmentation_image'
     # the mysterious line below corrects for over-segmentation of CSF
-    dapper[myk] = dapper[myk] * ants.threshold_image( mywarped, 1.0e-9, math.inf )
+    dapper[myk] = dapper[myk] * ants.threshold_image( mywarped, 1.0e-6, math.inf )
     dapper[myk] = ants.apply_transforms(
             x,
             dapper[myk],
@@ -879,11 +878,17 @@ def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_p
         )
 
     if atropos_prior is not None:
-        msk = ants.threshold_image( x, 0.03, 1 )
-        aap = ants.atropos( x, msk, i=dapper[myk][1:(myn)], m='[0.0,1x1x1]',
+        msk = ants.threshold_image( dapper['segmentation_image'], 2, 3 ).iMath("GetLargestComponent")
+        msk = ants.morphology( msk, "close", 2 )
+        mskfull = ants.threshold_image( dapper['segmentation_image'], 1, 6 )
+        mskfull = mskfull - msk
+        priors = dapper[myk][1:4]
+        for k in range( len( priors ) ):
+            priors[k]=ants.image_clone( priors[k]*msk )
+        aap = ants.atropos( x, msk, i=priors, m='[0.0,1x1x1]',
             c = '[1,0]', priorweight=atropos_prior, verbose=1  )
-        dapper['segmentation_image'] = aap['segmentation']
-        dapper['probability_images'] = aap['probabilityimages']
+        dapper['segmentation_image'] = aap['segmentation'] * msk + dapper['segmentation_image'] * mskfull
+        dapper['probability_images'][1:4] = aap['probabilityimages']
 
     return dapper
 
@@ -955,9 +960,7 @@ def deep_brain_parcellation(
         print("Begin Atropos tissue segmentation")
 
     mydap = deep_tissue_segmentation(
-        target_image,
-        template,
-        rig )
+        target_image  )
 
     if verbose:
         print("End Atropos tissue segmentation")
