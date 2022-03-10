@@ -2250,15 +2250,16 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         alpha=0.6, filename=tissue_seg_png,
         crop=True, black_bg=False )
 
+    myhypo = None
     if verbose:
         print("WMH")
     ##### below here are more exploratory nice to have outputs
-    myhypo = t1_hypointensity(
-        img,
-        myparc['tissue_segmentation'], # segmentation
-        myparc['tissue_probabilities'][3], # wm posteriors
-        templatea,
-        templateawmprior )
+#    myhypo = t1_hypointensity(
+#        img,
+#        myparc['tissue_segmentation'], # segmentation
+#        myparc['tissue_probabilities'][3], # wm posteriors
+#        templatea,
+#        templateawmprior )
 
     if verbose:
         print("registration")
@@ -2372,7 +2373,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "dktcortex":dktc,
         "wmtracts_left":wmtdfL,
         "wmtracts_right":wmtdfR,
-        "wmh":myhypo['wmh_summary'],
+#        "wmh":myhypo['wmh_summary'],
         "mtl":deep_flash['mtl_description'],
         "bf":deep_bf['description'],
         "cit168":cit168lab_desc,
@@ -2390,7 +2391,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "dkt_parc": myparc,
         "registration":reg,
         "hippLR":hippLR['segmentation'],
-        "white_matter_hypointensity":myhypo['wmh_probability_image'],
+#        "white_matter_hypointensity":myhypo['wmh_probability_image'],
         "wm_tractsL":wm_tractsL,
         "wm_tractsR":wm_tractsR,
         "mtl":deep_flash['mtl_segmentation'],
