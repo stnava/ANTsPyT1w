@@ -820,7 +820,7 @@ def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     return( ants.apply_transforms( x, templateLR, reg['fwdtransforms'],
         interpolator='genericLabel') )
 
-def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_prior=0.25 ):
+def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_prior=None ):
     """
     modified slightly more efficient deep atropos that also handles the
     extra CSF issue.  returns segmentation and probability images. see
@@ -895,6 +895,7 @@ def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_p
 def deep_brain_parcellation(
     target_image,
     template,
+    img6seg = None,
     do_cortical_propagation=False,
     verbose=False,
 ):
@@ -907,6 +908,8 @@ def deep_brain_parcellation(
     target_image: input image
 
     template: MNI space template, should be "croppedMni152" or "biobank"
+
+    img6seg: optional pre-existing brain segmentation - a 6-class image ( ANTs standard )
 
     do_cortical_propagation: boolean, adds a bit extra time to propagate cortical
         labels explicitly into cortical segmentation
@@ -959,8 +962,10 @@ def deep_brain_parcellation(
     if verbose:
         print("Begin Atropos tissue segmentation")
 
-    mydap = deep_tissue_segmentation(
-        target_image  )
+    if img6seg is None:
+        mydap = deep_tissue_segmentation( target_image  )
+    else:
+        mydap = { 'segmentation_image': img6seg, 'probability_images': None }
 
     if verbose:
         print("End Atropos tissue segmentation")
@@ -2126,7 +2131,7 @@ def preprocess_intensity( x, brain_extraction,
 
 
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
-    imgbxt=None, cit168 = False, is_test=False, verbose=True ):
+    imgbxt=None, img6seg=None, cit168 = False, is_test=False, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -2142,6 +2147,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     skip registration which will be faster but omit some results.
 
     imgbxt : pre-existing brain extraction - a binary image - will disable some processing
+
+    img6seg: pre-existing brain segmentation - a 6-class image ( ANTs standard )
 
     cit168 : boolean returns labels from CIT168 atlas with high-resolution registration
         otherwise, low-resolution regitration is used.
@@ -2226,6 +2233,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     ##### hierarchical labeling
     myparc = deep_brain_parcellation( img, templateb,
+        img6seg = img6seg,
         do_cortical_propagation = not is_test, verbose=False )
 
     ##### accumulate data into data frames
