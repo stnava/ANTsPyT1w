@@ -2887,7 +2887,7 @@ def super_resolution_segmentation_with_probabilities(
     # SR Part
     srimglist = []
     srproblist = []
-    mypt = 0.1 / len(initial_probabilities)
+    mypt = 0.5 / len(initial_probabilities)
 
     for k in range(len(initial_probabilities)):
         tempm = ants.threshold_image( initial_probabilities[k], mypt, 2.0 )

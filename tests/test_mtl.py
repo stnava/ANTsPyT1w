@@ -17,9 +17,6 @@ img = img * antspynet.brain_extraction( img, 't1' )
 bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 templateb = ants.image_read( bfn )
 templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
-# deep_hippo(img, template, number_of_tries=10, syn_type='antsRegistrationSyNQuickRepro[a]', verbose=False)
-mdl = tf.keras.models.load_model( "/Users/stnava/.antspyt1w/SEGSRES_Sharp_32_ANINN222_1_good3.h5" )
+mdl = tf.keras.models.load_model( "/home/ubuntu/models/SEGSRES_Sharp_32_ANINN222_1_good3.h5" )
 hippLR = antspyt1w.deep_mtl( img  )
 hippLR2 = antspyt1w.deep_mtl( img, sr_model=mdl  )
-derka
-sys.exit(os.EX_OK) # code 0, all ok
