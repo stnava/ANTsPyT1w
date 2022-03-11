@@ -897,6 +897,7 @@ def deep_brain_parcellation(
     template,
     img6seg = None,
     do_cortical_propagation=False,
+    atropos_prior=None,
     verbose=False,
 ):
     """
@@ -913,6 +914,10 @@ def deep_brain_parcellation(
 
     do_cortical_propagation: boolean, adds a bit extra time to propagate cortical
         labels explicitly into cortical segmentation
+
+    atropos_prior: prior weight for atropos post-processing; set to None if you
+        do not want to use this.  will modify the CSF, GM and WM segmentation to
+        better fit the image intensity at the resolution of the input image.
 
     verbose: boolean
 
@@ -963,7 +968,7 @@ def deep_brain_parcellation(
         print("Begin Atropos tissue segmentation")
 
     if img6seg is None:
-        mydap = deep_tissue_segmentation( target_image  )
+        mydap = deep_tissue_segmentation( target_image, atropos_prior=atropos_prior  )
     else:
         mydap = { 'segmentation_image': img6seg, 'probability_images': None }
 
@@ -2131,7 +2136,8 @@ def preprocess_intensity( x, brain_extraction,
 
 
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
-    imgbxt=None, img6seg=None, cit168 = False, is_test=False, verbose=True ):
+    imgbxt=None, img6seg=None, cit168 = False, is_test=False,
+    atropos_prior=None, verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -2154,6 +2160,10 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         otherwise, low-resolution regitration is used.
 
     is_test: boolean ( parameters to run more quickly but with low quality )
+
+    atropos_prior: prior weight for atropos post-processing; set to None if you
+        do not want to use this.  will modify the CSF, GM and WM segmentation to
+        better fit the image intensity at the resolution of the input image.
 
     verbose: boolean
 
@@ -2234,6 +2244,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     ##### hierarchical labeling
     myparc = deep_brain_parcellation( img, templateb,
         img6seg = img6seg,
+        atropos_prior = atropos_prior,
         do_cortical_propagation = not is_test, verbose=False )
 
     ##### accumulate data into data frames
