@@ -33,3 +33,5 @@ from .get_data import patch_eigenvalue_ratio
 from .get_data import subdivide_labels
 from .get_data import inspect_raw_t1
 from .get_data import resnet_grader
+from .get_data import super_resolution_segmentation_per_label
+from .get_data import super_resolution_segmentation_with_probabilities

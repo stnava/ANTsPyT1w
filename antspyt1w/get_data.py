@@ -1012,6 +1012,7 @@ def deep_hippo(
     template,
     number_of_tries = 10,
     tx_type="antsRegistrationSyNQuickRepro[a]",
+    sr_model = None,
     verbose=False
 ):
 
@@ -1046,6 +1047,17 @@ def deep_hippo(
     hippright_bin = ants.threshold_image( avgright, 0.5, 2.0 ).iMath("GetLargestComponent")
     hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent")
     hipp_bin = hippleft_bin + hippright_bin * 2
+    super_resolution = None
+    if sr_model is not None:
+        mysr = super_resolution_segmentation_per_label(
+            img,  segmentation=hipp_bin, upFactor=[2,2,2],
+            sr_model=sr_model, segmentation_numbers=[1,2],
+            dilation_amount=0, probability_images=None,
+            probability_labels=None, max_lab_plus_one=True, verbose=True
+            )
+        hipp_bin = mysr['super_resolution_segmentation']
+        super_resolution = mysr['super_resolution']
+
     hippleftORlabels  = ants.label_geometry_measures(hippleft_bin, avgleft)
     hippleftORlabels['Description'] = 'left hippocampus'
     hipprightORlabels  = ants.label_geometry_measures(hippright_bin, avgright)
@@ -1057,6 +1069,7 @@ def deep_hippo(
         'description':hippleftORlabels,
         'HLProb':avgleft,
         'HRProb':avgright,
+        'super_resolution':super_resolution
     }
     return labels
 
@@ -1076,7 +1089,7 @@ def dap( x ):
     )
     return(  dappertox )
 
-def deep_mtl(t1):
+def deep_mtl(t1, sr_model=None):
 
     """
     Hippocampal/Enthorhinal segmentation using "Deep Flash"
@@ -1133,6 +1146,13 @@ def deep_mtl(t1):
     t1_warped = registration['warpedmovout']
 
     df = antspynet.deep_flash(t1_warped, do_preprocessing=False, verbose=verbose)
+
+    # upsample the probability images with SR
+    if sr_model is not None:
+        newprobs = super_resolution_segmentation_with_probabilities(
+            t1_warped, df['probability_images'],
+            sr_model )
+        df['probability_images'] = newprobs['sr_probabilities']
 
     probability_images = list()
     for i in range(len(df['probability_images'])):
@@ -2137,7 +2157,9 @@ def preprocess_intensity( x, brain_extraction,
 
 def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     imgbxt=None, img6seg=None, cit168 = False, is_test=False,
-    atropos_prior=None, verbose=True ):
+    atropos_prior=None,
+    sr_model = None,
+    verbose=True ):
     """
     Default processing for a T1-weighted image.  See README.
 
@@ -2164,6 +2186,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     atropos_prior: prior weight for atropos post-processing; set to None if you
         do not want to use this.  will modify the CSF, GM and WM segmentation to
         better fit the image intensity at the resolution of the input image.
+
+    sr_model: optional will trigger sr-based upsampling in some functions.
 
     verbose: boolean
 
@@ -2335,13 +2359,14 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     ntries = 10
     if is_test:
         ntries = 1
-    hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries, tx_type='Affine' )
+    hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries,
+        tx_type='Affine', sr_model = sr_model )
 
     if verbose:
         print("medial temporal lobe")
 
     ##### deep_flash medial temporal lobe parcellation
-    deep_flash = deep_mtl(img)
+    deep_flash = deep_mtl(img, sr_model = sr_model )
 
     if verbose:
         print("NBM")
@@ -2635,3 +2660,260 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=
     wide_df.insert(loc = 0, column = identifier_name, value = identifier)
 
     return wide_df
+
+
+
+
+def super_resolution_segmentation_per_label(
+    imgIn,
+    segmentation, # segmentation label image
+    upFactor,
+    sr_model,
+    segmentation_numbers,
+    dilation_amount = 0,
+    probability_images=None, # probability list
+    probability_labels=None, # the segmentation ids for the probability image,
+    max_lab_plus_one=True,
+    verbose = False,
+):
+    """
+    Apply a two-channel super resolution model to an image and probability pair.
+
+    Arguments
+    ---------
+    imgIn : ANTsImage
+        image to be upsampled
+
+    segmentation : ANTsImage
+        segmentation probability, n-ary or binary image
+
+    upFactor : list
+        the upsampling factors associated with the super-resolution model
+
+    sr_model : tensorflow model or String
+        for computing super-resolution; String denotes an interpolation type
+
+    segmentation_numbers : list of target segmentation labels
+        list containing integer segmentation labels
+
+    dilation_amount : integer
+        amount to pad around each segmentation defining region over which to
+        computer the super-resolution in each label
+
+    probability_images : list of ANTsImages
+        list of probability images
+
+    probability_labels : integer list
+        providing the integer values associated with each probability image
+
+    max_lab_plus_one : boolean
+        add background label
+
+    verbose : boolean
+        whether to show status updates
+
+    Returns
+    -------
+
+    dictionary w/ following key/value pairs:
+        `super_resolution` : ANTsImage
+            super_resolution image
+
+        `super_resolution_segmentation` : ANTsImage
+            super_resolution_segmentation image
+
+        `segmentation_geometry` : list of data frame types
+            segmentation geometry for each label
+
+        `probability_images` : list of ANTsImage
+            segmentation probability maps
+
+
+    Example
+    -------
+    >>> import ants
+    >>> ref = ants.image_read( ants.get_ants_data('r16'))
+    >>> FIXME
+    """
+    import re
+    if type( sr_model ) == type(""):
+        if re.search( 'h5', sr_model ) is not None:
+            if verbose:
+                print("load model")
+            sr_model=tf.keras.models.load_model( sr_model )
+    newspc = ( np.asarray( ants.get_spacing( imgIn ) ) ).tolist()
+    for k in range(len(newspc)):
+        newspc[k] = newspc[k]/upFactor[k]
+    imgup = ants.resample_image( imgIn, newspc, use_voxels=False, interp_type=0 )
+    imgsrfull = imgup * 0.0
+    weightedavg = imgup * 0.0
+    problist = []
+    bkgdilate = 2
+    segmentationUse = ants.image_clone( segmentation )
+    segmentationUse = ants.mask_image( segmentationUse, segmentationUse, segmentation_numbers )
+    segmentation_numbers_use = segmentation_numbers.copy()
+    if max_lab_plus_one:
+        background = ants.mask_image( segmentationUse, segmentationUse, segmentation_numbers, binarize=True )
+        background = ants.iMath(background,"MD",bkgdilate) - background
+        backgroundup = ants.resample_image_to_target( background, imgup, interp_type='linear' )
+        segmentation_numbers_use.append( max(segmentation_numbers) + 1 )
+        segmentationUse = segmentationUse + background * max(segmentation_numbers_use)
+
+    for locallab in segmentation_numbers:
+        if verbose:
+            print( "SR-per-label:" + str( locallab ) )
+        binseg = ants.threshold_image( segmentationUse, locallab, locallab )
+        sizethresh = 2
+        if ( binseg == 1 ).sum() < sizethresh :
+            warnings.warn( "SR-per-label:" + str( locallab ) + ' is small' )
+        # FIXME replace binseg with probimg and use minprob to threshold it after SR
+        if ( binseg == 1 ).sum() >= sizethresh :
+            minprob="NA"
+            maxprob="NA"
+            if probability_images is not None:
+                whichprob = probability_labels.index(locallab)
+                probimg = probability_images[whichprob].resample_image_to_target( binseg )
+                minprob = min( probimg[ binseg >= 0.5 ] )
+                maxprob = max( probimg[ binseg >= 0.5 ] )
+            if verbose:
+                print( "SR-per-label:" + str( locallab ) + " min/max-prob: " + str(minprob)+ " / " + str(maxprob)  )
+            binsegdil = ants.iMath( ants.threshold_image( segmentationUse, locallab, locallab ), "MD", dilation_amount )
+            binsegdil2input = ants.resample_image_to_target( binsegdil, imgIn, interp_type='nearestNeighbor'  )
+            imgc = ants.crop_image( ants.iMath(imgIn,"Normalize"), binsegdil2input )
+            imgc = imgc * 255 - 127.5 # for SR
+            imgch = ants.crop_image( binseg, binsegdil )
+            imgch = ants.iMath( imgch, "Normalize" ) * 255 - 127.5 # for SR
+            if type( sr_model ) == type(""): # this is just for testing
+                binsegup = ants.resample_image_to_target( binseg, imgup, interp_type='linear' )
+                problist.append( binsegup )
+            else:
+                if verbose:
+                    print(imgc)
+                    print(imgch)
+                myarr = np.stack( [imgc.numpy(),imgch.numpy()],axis=3 )
+                newshape = np.concatenate( [ [1],np.asarray( myarr.shape )] )
+                myarr = myarr.reshape( newshape )
+                if verbose:
+                    print("calling prediction function")
+                    print( myarr.shape )
+                pred = sr_model.predict( myarr )
+                if verbose:
+                    print("predict done")
+                imgsr = ants.from_numpy( tf.squeeze( pred[0] ).numpy())
+                imgsr = ants.copy_image_info( imgc, imgsr )
+                newspc = ( np.asarray( ants.get_spacing( imgsr ) ) * 0.5 ).tolist()
+                ants.set_spacing( imgsr,  newspc )
+                imgsrh = ants.from_numpy( tf.squeeze( pred[1] ).numpy())
+                imgsrh = ants.copy_image_info( imgc, imgsrh )
+                ants.set_spacing( imgsrh,  newspc )
+                problist.append( imgsrh )
+                if verbose:
+                    print("match intensity")
+                imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgup,imgsr) )
+                contribtoavg = ants.resample_image_to_target( imgsr*0+1, imgup, interp_type='nearestNeighbor' )
+                weightedavg = weightedavg + contribtoavg
+                imgsrfull = imgsrfull + ants.resample_image_to_target( imgsr, imgup, interp_type='nearestNeighbor' )
+
+    if max_lab_plus_one:
+        problist.append( backgroundup )
+
+    imgsrfull2 = imgsrfull
+    selector = imgsrfull == 0
+    imgsrfull2[ selector  ] = imgup[ selector ]
+    weightedavg[ weightedavg == 0.0 ] = 1.0
+    imgsrfull2=imgsrfull2/weightedavg
+    imgsrfull2[ imgup == 0 ] = 0
+
+    for k in range(len(problist)):
+        problist[k] = ants.resample_image_to_target(problist[k],imgsrfull2,interp_type='linear')
+
+    if max_lab_plus_one:
+        tarmask = ants.threshold_image( segmentationUse, 1, segmentationUse.max() )
+    else:
+        tarmask = ants.threshold_image( segmentationUse, 1, segmentationUse.max() ).iMath("MD",1)
+    tarmask = ants.resample_image_to_target( tarmask, imgsrfull2, interp_type='genericLabel' )
+    segmat = ants.images_to_matrix(problist, tarmask)
+    finalsegvec = segmat.argmax(axis=0)
+    finalsegvec2 = finalsegvec.copy()
+
+    # mapfinalsegvec to original labels
+    for i in range(len(problist)):
+        segnum = segmentation_numbers_use[i]
+        finalsegvec2[finalsegvec == i] = segnum
+
+    outimg = ants.make_image(tarmask, finalsegvec2)
+    outimg = ants.mask_image( outimg, outimg, segmentation_numbers )
+    seggeom = ants.label_geometry_measures( outimg )
+
+    return {
+        "super_resolution": imgsrfull2,
+        "super_resolution_segmentation": outimg,
+        "segmentation_geometry": seggeom,
+        "probability_images": problist
+        }
+
+
+
+
+def super_resolution_segmentation_with_probabilities(
+    img,
+    initial_probabilities,
+    sr_model,
+    dilation_amount = 0
+):
+    """
+    Simultaneous super-resolution and probabilistic segmentation.
+
+    this function will perform localized super-resolution analysis on the
+    underlying image content to produce a SR version of both the local region
+    intentsity and segmentation probability.  the number of probability images
+    determines the number of outputs for the intensity and probabilitiy list
+    that are returned.  NOTE: should consider inverse logit transform option.
+
+    Arguments
+    ---------
+    img : input intensity image
+
+    initial_probabilities: original resolution probability images
+
+    sr_model : the super resolution model - should have 2 channel input
+
+    Returns
+    -------
+    list of ANTsImages
+
+    """
+
+    # SR Part
+    srimglist = []
+    srproblist = []
+    mypt = 0.1 / len(initial_probabilities)
+
+    for k in range(len(initial_probabilities)):
+        tempm = ants.threshold_image( initial_probabilities[k], mypt, 2.0 )
+        imgc = ants.crop_image(img,tempm)
+        imgch = ants.crop_image(initial_probabilities[k],tempm)
+        imgcrescale = ants.iMath( imgc, "Normalize" ) * 255 - 127.5 # for SR
+        imgchrescale = imgch * 255.0 - 127.5
+        myarr = np.stack( [ imgcrescale.numpy(), imgchrescale.numpy() ],axis=3 )
+        newshape = np.concatenate( [ [1],np.asarray( myarr.shape )] )
+        myarr = myarr.reshape( newshape )
+        pred = sr_model.predict( myarr )
+        imgsr = ants.from_numpy( tf.squeeze( pred[0] ).numpy())
+        imgsr = ants.copy_image_info( imgc, imgsr )
+        newspc = ( np.asarray( ants.get_spacing( imgsr ) ) * 0.5 ).tolist()
+        ants.set_spacing( imgsr,  newspc )
+        imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgc,imgsr) )
+        imgsrh = ants.from_numpy( tf.squeeze( pred[1] ).numpy())
+        imgsrh = ants.copy_image_info( imgc, imgsrh )
+        ants.set_spacing( imgsrh,  newspc )
+        tempup = ants.resample_image_to_target( tempm, imgsr )
+        srimglist.append( imgsr )
+        # NOTE: get rid of pixellated junk/artifacts - acts like a prior
+        srproblist.append( imgsrh * tempup )
+
+    labels = {
+        'sr_intensities':srimglist,
+        'sr_probabilities':srproblist,
+    }
+    return labels
