@@ -1153,8 +1153,6 @@ def deep_mtl(t1, sr_model=None, verbose=True):
             t1_warped, df['probability_images'],
             sr_model )
         df['probability_images'] = newprobs['sr_probabilities']
-        print("X")
-        print( df['probability_images'] )
 
     probability_images = list()
     for i in range(len(df['probability_images'])):
