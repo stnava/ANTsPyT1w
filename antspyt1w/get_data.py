@@ -1153,6 +1153,8 @@ def deep_mtl(t1, sr_model=None):
             t1_warped, df['probability_images'],
             sr_model )
         df['probability_images'] = newprobs['sr_probabilities']
+        print("X")
+        print( df['probability_images'] )
 
     probability_images = list()
     for i in range(len(df['probability_images'])):
@@ -2859,7 +2861,7 @@ def super_resolution_segmentation_with_probabilities(
     img,
     initial_probabilities,
     sr_model,
-    dilation_amount = 0
+    verbose = True
 ):
     """
     Simultaneous super-resolution and probabilistic segmentation.
@@ -2893,6 +2895,9 @@ def super_resolution_segmentation_with_probabilities(
         tempm = ants.threshold_image( initial_probabilities[k], mypt, 2.0 )
         imgc = ants.crop_image(img,tempm)
         imgch = ants.crop_image(initial_probabilities[k],tempm)
+        if verbose:
+            print(k)
+            print(imgc)
         imgcrescale = ants.iMath( imgc, "Normalize" ) * 255 - 127.5 # for SR
         imgchrescale = imgch * 255.0 - 127.5
         myarr = np.stack( [ imgcrescale.numpy(), imgchrescale.numpy() ],axis=3 )
@@ -2903,14 +2908,18 @@ def super_resolution_segmentation_with_probabilities(
         imgsr = ants.copy_image_info( imgc, imgsr )
         newspc = ( np.asarray( ants.get_spacing( imgsr ) ) * 0.5 ).tolist()
         ants.set_spacing( imgsr,  newspc )
+        if verbose:
+            print(imgsr)
         imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgc,imgsr) )
         imgsrh = ants.from_numpy( tf.squeeze( pred[1] ).numpy())
-        imgsrh = ants.copy_image_info( imgc, imgsrh )
-        ants.set_spacing( imgsrh,  newspc )
+        imgsrh = ants.copy_image_info( imgsr, imgsrh )
         tempup = ants.resample_image_to_target( tempm, imgsr )
         srimglist.append( imgsr )
         # NOTE: get rid of pixellated junk/artifacts - acts like a prior
         srproblist.append( imgsrh * tempup )
+
+    if verbose:
+        print("done srwithprob")
 
     labels = {
         'sr_intensities':srimglist,
