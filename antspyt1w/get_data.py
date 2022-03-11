@@ -1089,7 +1089,7 @@ def dap( x ):
     )
     return(  dappertox )
 
-def deep_mtl(t1, sr_model=None):
+def deep_mtl(t1, sr_model=None, verbose=True):
 
     """
     Hippocampal/Enthorhinal segmentation using "Deep Flash"
