@@ -2889,14 +2889,14 @@ def super_resolution_segmentation_with_probabilities(
     # SR Part
     srimglist = []
     srproblist = []
-    mypt = 0.2
+    mypt = 1.0 / len(initial_probabilities)
 
     for k in range(len(initial_probabilities)):
         if k == 0:
             srimglist.append( img )
             srproblist.append( initial_probabilities[k] )
         else:
-            tempm = ants.threshold_image( initial_probabilities[k], 0, 0.5 ).iMath("MD",2)
+            tempm = ants.threshold_image( initial_probabilities[k], mypt, 2 ).iMath("MD",1)
             imgc = ants.crop_image(img,tempm)
             imgch = ants.crop_image(initial_probabilities[k],tempm)
             if verbose:
