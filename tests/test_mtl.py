@@ -11,8 +11,9 @@ import ants
 import re
 import pandas as pd
 import tensorflow as tf
-fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
-img = ants.image_read( fn )
+ifn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
+# ifn = '/tmp/PPMI-3173-20120131-T1wHierarchical-I287851-RSNTSR_brain_n4_dnz.nii.gz'
+img = ants.image_read( ifn )
 img = img * antspynet.brain_extraction( img, 't1' )
 bfn = antspynet.get_antsxnet_data( "croppedMni152" )
 templateb = ants.image_read( bfn )

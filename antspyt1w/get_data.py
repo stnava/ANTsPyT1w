@@ -820,7 +820,8 @@ def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     return( ants.apply_transforms( x, templateLR, reg['fwdtransforms'],
         interpolator='genericLabel') )
 
-def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_prior=None ):
+def deep_tissue_segmentation( x, template=None, registration_map=None,
+    atropos_prior=None, sr_model=None ):
     """
     modified slightly more efficient deep atropos that also handles the
     extra CSF issue.  returns segmentation and probability images. see
@@ -835,6 +836,8 @@ def deep_tissue_segmentation( x, template=None, registration_map=None, atropos_p
     atropos_prior: prior weight for atropos post-processing; set to None if you
         do not want to use this.  will modify the CSF, GM and WM segmentation to
         better fit the image intensity at the resolution of the input image.
+
+    sr_model: optional (FIXME)
 
     """
     if template is None:
@@ -1039,8 +1042,9 @@ def deep_hippo(
             mysr = super_resolution_segmentation_per_label(
                 rigi,  segmentation=hipp, upFactor=[2,2,2],
                 sr_model=sr_model, segmentation_numbers=[1,2],
-                dilation_amount=0, probability_images=None,
-                probability_labels=None, max_lab_plus_one=True, verbose=True
+                dilation_amount=0,
+                probability_images=None,
+                probability_labels=[1,2], max_lab_plus_one=True, verbose=True
                 )
             hipp = mysr['super_resolution_segmentation']
 
@@ -1051,8 +1055,8 @@ def deep_hippo(
             whichtoinvert=[True],
             interpolator='genericLabel',
         )
-        avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ) / float(number_of_tries)
-        avgright = avgright + ants.threshold_image( hippr, 1, 1 ) / float(number_of_tries)
+        avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ).iMath("GetLargestComponent") / float(number_of_tries)
+        avgright = avgright + ants.threshold_image( hippr, 1, 1 ).iMath("GetLargestComponent") / float(number_of_tries)
 
 
     avgright = ants.iMath(avgright,"Normalize")  # output: probability image right
@@ -1149,11 +1153,27 @@ def deep_mtl(t1, sr_model=None, verbose=True):
 
     df = antspynet.deep_flash(t1_warped, do_preprocessing=False, verbose=verbose)
 
-    # upsample the probability images with SR
+    if False:
+        if sr_model is not None:
+            ulabs = np.unique( df['segmentation_image'].numpy() )
+            ulabs.sort()
+            ulabs = ulabs[1:len(ulabs)]
+            ulabs = ulabs.tolist()
+            newprobs = super_resolution_segmentation_per_label(
+                t1_warped,
+                df['segmentation_image'],
+                [2,2,2],
+                sr_model,
+                ulabs,
+                probability_images=df['probability_images'][1:len(df['probability_images'])],
+                probability_labels=ulabs,
+                max_lab_plus_one=True  )
+            for k in range(1, len(df['probability_images']) ):
+                df['probability_images'][k] = newprobs['probability_images'][k-1]
+
     if sr_model is not None:
         newprobs = super_resolution_segmentation_with_probabilities(
-            t1_warped, df['probability_images'],
-            sr_model )
+            t1_warped, df['probability_images'], sr_model )
         df['probability_images'] = newprobs['sr_probabilities']
 
     probability_images = list()
@@ -2768,7 +2788,6 @@ def super_resolution_segmentation_per_label(
         sizethresh = 2
         if ( binseg == 1 ).sum() < sizethresh :
             warnings.warn( "SR-per-label:" + str( locallab ) + ' is small' )
-        # FIXME replace binseg with probimg and use minprob to threshold it after SR
         if ( binseg == 1 ).sum() >= sizethresh :
             minprob="NA"
             maxprob="NA"
@@ -2784,6 +2803,8 @@ def super_resolution_segmentation_per_label(
             imgc = ants.crop_image( ants.iMath(imgIn,"Normalize"), binsegdil2input )
             imgc = imgc * 255 - 127.5 # for SR
             imgch = ants.crop_image( binseg, binsegdil )
+            if probability_images is not None:
+                imgch = ants.crop_image( probimg, binsegdil )
             imgch = ants.iMath( imgch, "Normalize" ) * 255 - 127.5 # for SR
             if type( sr_model ) == type(""): # this is just for testing
                 binsegup = ants.resample_image_to_target( binseg, imgup, interp_type='linear' )
@@ -2834,18 +2855,30 @@ def super_resolution_segmentation_per_label(
     else:
         tarmask = ants.threshold_image( segmentationUse, 1, segmentationUse.max() ).iMath("MD",1)
     tarmask = ants.resample_image_to_target( tarmask, imgsrfull2, interp_type='genericLabel' )
-    segmat = ants.images_to_matrix(problist, tarmask)
-    finalsegvec = segmat.argmax(axis=0)
-    finalsegvec2 = finalsegvec.copy()
 
-    # mapfinalsegvec to original labels
-    for i in range(len(problist)):
-        segnum = segmentation_numbers_use[i]
-        finalsegvec2[finalsegvec == i] = segnum
 
-    outimg = ants.make_image(tarmask, finalsegvec2)
-    outimg = ants.mask_image( outimg, outimg, segmentation_numbers )
-    seggeom = ants.label_geometry_measures( outimg )
+    if True: # we dont generally know which of these is background/foreground so .....
+        segmat = ants.images_to_matrix(problist, tarmask)
+        finalsegvec = segmat.argmax(axis=0)
+        finalsegvec2 = finalsegvec.copy()
+        for i in range(len(problist)):
+            segnum = segmentation_numbers_use[i]
+            finalsegvec2[finalsegvec == i] = segnum
+        outimg = ants.make_image(tarmask, finalsegvec2)
+        outimg = ants.mask_image( outimg, outimg, segmentation_numbers )
+        seggeom = ants.label_geometry_measures( outimg )
+    else:
+        image_matrix = ants.image_list_to_matrix(problist[0:(len(problist)-1)], tarmask )
+        background_foreground_matrix = np.stack([ants.image_list_to_matrix([problist[len(problist)-1]], tarmask),
+                                            np.expand_dims(np.sum(image_matrix, axis=0), axis=0)])
+        foreground_matrix = np.argmax(background_foreground_matrix, axis=0)
+        segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1) * foreground_matrix
+        segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), tarmask)[0]
+        outimg = ants.image_clone(segmentation_image)
+        for i in range(len(problist)):
+            outimg[segmentation_image==i] = segmentation_numbers_use[i]
+        outimg = ants.mask_image( outimg, outimg, segmentation_numbers )
+        seggeom = ants.label_geometry_measures( outimg )
 
     return {
         "super_resolution": imgsrfull2,
@@ -2861,7 +2894,7 @@ def super_resolution_segmentation_with_probabilities(
     img,
     initial_probabilities,
     sr_model,
-    verbose = True
+    verbose = False
 ):
     """
     Simultaneous super-resolution and probabilistic segmentation.
