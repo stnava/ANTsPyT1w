@@ -1095,6 +1095,40 @@ def dap( x ):
     )
     return(  dappertox )
 
+def label_and_img_to_sr( img, label_img, sr_model ):
+    ulabs = np.unique( label_img.numpy() )
+    ulabs.sort()
+    ulabs = ulabs[1:len(ulabs)]
+    ulabs = ulabs.tolist()
+    return super_resolution_segmentation_per_label(
+                    img,
+                    label_img,
+                    [2,2,2],
+                    sr_model,
+                    ulabs,
+                    max_lab_plus_one=True  )['super_resolution_segmentation']
+
+def hierarchical_to_sr( img, t1hier, sr_model, verbose=False ):
+    # from  >>> t1h.keys()
+    myvarlist = [ 'mtl', 'bf', 'deep_cit168lab', 'cit168lab', 'snseg' ]
+    for myvar in myvarlist:
+        if verbose:
+            print( myvar )
+        t1hier[myvar]=label_and_img_to_sr( img, t1hier[myvar], sr_model )
+    if verbose:
+        print( 'dkt_cortex' )
+    t1hier['dkt_parc']['dkt_cortex']=label_and_img_to_sr( img, t1hier['dkt_parc']['dkt_cortex'], sr_model )
+    if verbose:
+        print( 'assemble summaries' )
+    t1hier['dataframes']["dktcortex"]= map_segmentation_to_dataframe( "dkt", t1hier['dkt_parc']['dkt_cortex'] )
+    t1hier['dataframes']["mtl"]=map_segmentation_to_dataframe( 'mtl_description',  t1hier['mtl'] )
+    t1hier['dataframes']["bf"]=map_segmentation_to_dataframe( 'nbm3CH13', t1hier['bf'] )
+    t1hier['dataframes']["cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['cit168lab'] )
+    t1hier['dataframes']["deep_cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['deep_cit168lab'] )
+    t1hier['dataframes']["snseg"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['snseg'] )
+    return t1hier
+
+
 def deep_mtl(t1, sr_model=None, verbose=True):
 
     """

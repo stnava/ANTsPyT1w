@@ -35,3 +35,5 @@ from .get_data import inspect_raw_t1
 from .get_data import resnet_grader
 from .get_data import super_resolution_segmentation_per_label
 from .get_data import super_resolution_segmentation_with_probabilities
+from .get_data import label_and_img_to_sr
+from .get_data import hierarchical_to_sr
