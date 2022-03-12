@@ -1016,6 +1016,9 @@ def deep_hippo(
     verbose=False
 ):
 
+
+    super_resolution = None
+
     avgleft = img * 0
     avgright = img * 0
     for k in range(number_of_tries):
@@ -1031,6 +1034,16 @@ def deep_hippo(
         hipp = antspynet.hippmapp3r_segmentation( rigi, do_preprocessing=False )
         if verbose:
             print( "done with hippmapp3r - backtransform" )
+
+        if sr_model is not None:
+            mysr = super_resolution_segmentation_per_label(
+                rigi,  segmentation=hipp, upFactor=[2,2,2],
+                sr_model=sr_model, segmentation_numbers=[1,2],
+                dilation_amount=0, probability_images=None,
+                probability_labels=None, max_lab_plus_one=True, verbose=True
+                )
+            hipp = mysr['super_resolution_segmentation']
+
         hippr = ants.apply_transforms(
             img,
             hipp,
@@ -1047,16 +1060,6 @@ def deep_hippo(
     hippright_bin = ants.threshold_image( avgright, 0.5, 2.0 ).iMath("GetLargestComponent")
     hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent")
     hipp_bin = hippleft_bin + hippright_bin * 2
-    super_resolution = None
-    if sr_model is not None:
-        mysr = super_resolution_segmentation_per_label(
-            img,  segmentation=hipp_bin, upFactor=[2,2,2],
-            sr_model=sr_model, segmentation_numbers=[1,2],
-            dilation_amount=0, probability_images=None,
-            probability_labels=None, max_lab_plus_one=True, verbose=True
-            )
-        hipp_bin = mysr['super_resolution_segmentation']
-        super_resolution = mysr['super_resolution']
 
     hippleftORlabels  = ants.label_geometry_measures(hippleft_bin, avgleft)
     hippleftORlabels['Description'] = 'left hippocampus'
@@ -1068,9 +1071,8 @@ def deep_hippo(
         'segmentation':hipp_bin,
         'description':hippleftORlabels,
         'HLProb':avgleft,
-        'HRProb':avgright,
-        'super_resolution':super_resolution
-    }
+        'HRProb':avgright
+        }
     return labels
 
 
