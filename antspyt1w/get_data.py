@@ -2596,6 +2596,98 @@ def zoom_syn( target_image, template, template_segmentations,
 
 
 
+def read_hierarchical( output_prefix ):
+    """
+    standardized reading of output for hierarchical function
+
+    Arguments
+    ---------
+
+    output_prefix : string path including directory and file prefix that was
+        be applied to all output, both csv and images.
+
+    Returns
+    -------
+    hierarchical_object : output of antspyt1w.hierarchical
+        objects will be None if they cannot be found or if reading/writing
+        is not yet implemented for them
+
+    """
+
+    mydataframes = {
+            "rbp": None,
+            "hemispheres":None,
+            "tissues":None,
+            "dktlobes":None,
+            "dktregions":None,
+            "dktcortex":None,
+            "wmtracts_left":None,
+            "wmtracts_right":None,
+    #        "wmh":myhypo['wmh_summary'],
+            "mtl":None,
+            "bf":None,
+            "cit168":None,
+            "deep_cit168":None,
+            "snseg":None,
+            "hippLR":None,
+            }
+
+    dkt_parc = {
+        "tissue_segmentation":None,
+        "tissue_probabilities":None,
+        "dkt_parcellation":None,
+        "dkt_lobes":None,
+        "dkt_cortex": None,
+        "hemisphere_labels": None,
+        "wmSNR": None,
+        "wmcsfSNR": None, }
+
+    hierarchical_object = {
+            "brain_n4_dnz": None,
+            "brain_n4_dnz_png": None,
+            "brain_extraction": None,
+            "tissue_seg_png": None,
+            "left_right": None,
+            "dkt_parc": dkt_parc,
+            "registration":None,
+            "hippLR":None,
+    #        "white_matter_hypointensity":None,
+            "wm_tractsL":None,
+            "wm_tractsR":None,
+            "mtl":None,
+            "bf":None,
+            "deep_cit168lab":  None,
+            "cit168lab":  None,
+            "cit168reg":  None,
+            "snseg":None,
+            "snreg":None,
+            "dataframes": mydataframes
+        }
+
+    for myvar in hierarchical_object['dataframes'].keys():
+        if hierarchical_object['dataframes'][myvar] is None and exists( output_prefix + myvar + ".csv"):
+            hierarchical_object['dataframes'][myvar] = pd.read_csv(output_prefix + myvar + ".csv")
+
+    myvarlist = hierarchical_object.keys()
+    for myvar in myvarlist:
+        if hierarchical_object[myvar] is None and exists( output_prefix + myvar + '.nii.gz' ):
+            hierarchical_object[myvar] = ants.image_read( output_prefix + myvar + '.nii.gz' )
+
+    myvarlist = [
+        'tissue_segmentation',
+        'dkt_parcellation',
+        'dkt_lobes',
+        'dkt_cortex',
+        'hemisphere_labels' ]
+    for myvar in myvarlist:
+        if hierarchical_object['dkt_parc'][myvar] is None and exists( output_prefix + myvar + '.nii.gz' ):
+            hierarchical_object['dkt_parc'][myvar] = ants.image_read( output_prefix + myvar + '.nii.gz' )
+
+
+    return hierarchical_object
+
+
+
 
 def write_hierarchical( hierarchical_object, output_prefix ):
     """
