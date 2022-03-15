@@ -1095,12 +1095,34 @@ def dap( x ):
     )
     return(  dappertox )
 
-def label_and_img_to_sr( img, label_img, sr_model ):
+def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
+    """
+    Apply SR to a label image and the associated intensity.
+
+    img : the input intensity image
+
+    label_img : the input label image (segmentation)
+
+    sr_model : a super resolution model
+
+    return_intensity : boolean if True will return both intensity and labels,
+        otherwise only the upsampled labels are returned.
+
+    """
     ulabs = np.unique( label_img.numpy() )
     ulabs.sort()
     ulabs = ulabs[1:len(ulabs)]
     ulabs = ulabs.tolist()
-    return super_resolution_segmentation_per_label(
+    if return_intensity:
+        return super_resolution_segmentation_per_label(
+                        img,
+                        label_img,
+                        [2,2,2],
+                        sr_model,
+                        ulabs,
+                        max_lab_plus_one=True  )
+    else:
+        return super_resolution_segmentation_per_label(
                     img,
                     label_img,
                     [2,2,2],
@@ -1108,8 +1130,22 @@ def label_and_img_to_sr( img, label_img, sr_model ):
                     ulabs,
                     max_lab_plus_one=True  )['super_resolution_segmentation']
 
-def hierarchical_to_sr( img, t1hier, sr_model, verbose=False ):
+def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
+    """
+    Apply SR to most output from the hierarchical function
+
+    t1hier : the hierarchical object
+
+    sr_model : a super resolution model
+
+    tissue_sr : boolean, if True will perform SR on the whole image which can
+        be very memory intensive; only use if you have plenty of RAM.
+
+    verbose : boolean
+
+    """
     # from  >>> t1h.keys()
+    img = t1hier['brain_n4_dnz']
     myvarlist = [ 'mtl', 'bf', 'deep_cit168lab', 'cit168lab', 'snseg' ]
     for myvar in myvarlist:
         if verbose:
@@ -1126,6 +1162,22 @@ def hierarchical_to_sr( img, t1hier, sr_model, verbose=False ):
     t1hier['dataframes']["cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['cit168lab'] )
     t1hier['dataframes']["deep_cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['deep_cit168lab'] )
     t1hier['dataframes']["snseg"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['snseg'] )
+
+    if tissue_sr:
+        bmask = ants.threshold_image( t1hier['dkt_parc']['tissue_segmentation'], 1, 6 )
+        segcrop = ants.image_clone( t1hier['dkt_parc']['tissue_segmentation'] )
+        hemicrop = t1hier['left_right']
+        segcrop[ hemicrop == 2 ] = ( segcrop[ hemicrop == 2  ] + 6 )
+        segcrop = segcrop * bmask
+        mysr = antspyt1w.super_resolution_segmentation_per_label(
+                    t1hier['brain_n4_dnz'], segcrop, [2,2,2], mdl, [1,2,3,4,5,6,7,8,9,10,11,12],
+                    dilation_amount=0, probability_images=None,
+                    probability_labels=[1,2,3,4,5,6,7,8,9,10,11,12],
+                    max_lab_plus_one=True, verbose=True )
+        t1hier['brain_n4_dnz'] = mysr['super_resolution']
+        t1hier['dkt_parc']['tissue_segmentation'] = mysr['super_resolution_segmentation']
+
+
     return t1hier
 
 
