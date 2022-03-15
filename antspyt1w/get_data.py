@@ -1153,7 +1153,9 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
         t1hier[myvar]=label_and_img_to_sr( img, t1hier[myvar], sr_model )
     if verbose:
         print( 'dkt_cortex' )
-    t1hier['dkt_parc']['dkt_cortex']=label_and_img_to_sr( img, t1hier['dkt_parc']['dkt_cortex'], sr_model )
+    temp = label_and_img_to_sr( img, t1hier['dkt_parc']['dkt_cortex'], sr_model, return_intensity=True )
+    tempupimg = temp['super_resolution']
+    t1hier['dkt_parc']['dkt_cortex']= temp['super_resolution_segmentation']
     if verbose:
         print( 'assemble summaries' )
     t1hier['dataframes']["dktcortex"]= map_segmentation_to_dataframe( "dkt", t1hier['dkt_parc']['dkt_cortex'] )
@@ -1176,7 +1178,10 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
                     max_lab_plus_one=True, verbose=True )
         t1hier['brain_n4_dnz'] = mysr['super_resolution']
         t1hier['dkt_parc']['tissue_segmentation'] = mysr['super_resolution_segmentation']
-
+    else:
+        t1hier['brain_n4_dnz'] = tempupimg
+        t1hier['dkt_parc']['tissue_segmentation'] = ants.resample_image_to_target(
+            t1hier['dkt_parc']['tissue_segmentation'], tempupimg, 'nearestNeighbor')
 
     return t1hier
 
