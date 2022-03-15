@@ -1170,7 +1170,7 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
         segcrop[ hemicrop == 2 ] = ( segcrop[ hemicrop == 2  ] + 6 )
         segcrop = segcrop * bmask
         mysr = super_resolution_segmentation_per_label(
-                    t1hier['brain_n4_dnz'], segcrop, [2,2,2], mdl, [1,2,3,4,5,6,7,8,9,10,11,12],
+                    t1hier['brain_n4_dnz'], segcrop, [2,2,2], sr_model, [1,2,3,4,5,6,7,8,9,10,11,12],
                     dilation_amount=0, probability_images=None,
                     probability_labels=[1,2,3,4,5,6,7,8,9,10,11,12],
                     max_lab_plus_one=True, verbose=True )
