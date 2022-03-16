@@ -1130,7 +1130,7 @@ def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
                     ulabs,
                     max_lab_plus_one=True  )['super_resolution_segmentation']
 
-def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
+def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, do_deep_bf=False, do_deep_cit168=False, verbose=False ):
     """
     Apply SR to most output from the hierarchical function
 
@@ -1140,6 +1140,12 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
 
     tissue_sr : boolean, if True will perform SR on the whole image which can
         be very memory intensive; only use if you have plenty of RAM.
+
+    do_deep_bf : boolean, if True will perform SR on the local image then run
+        the segmentation method vs the opposite (default)
+
+    do_deep_cit168 : boolean, if True will perform SR on the local image then run
+        the segmentation method vs the opposite (default)
 
     verbose : boolean
 
@@ -1182,6 +1188,13 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
         t1hier['brain_n4_dnz'] = tempupimg
         t1hier['dkt_parc']['tissue_segmentation'] = ants.resample_image_to_target(
             t1hier['dkt_parc']['tissue_segmentation'], tempupimg, 'nearestNeighbor')
+
+
+    if do_deep_bf:
+        braintissuemask =  ants.threshold_image( t1hier['dkt_parc']['tissue_segmentation'], 2, 6 )
+        deep_bf = deep_nbm( t1hier['brain_n4_dnz'] * braintissuemask,
+            get_data("deep_nbm_rank",target_extension='.h5'),
+            csfquantile=None, aged_template=True )
 
     return t1hier
 
@@ -1789,6 +1802,18 @@ def deep_nbm( t1,
         csfquantile = csfquantile,
         returndef = deform )
 
+
+    def map_back( relo, t1, imgprepro, interpolator='linear', deform = False ):
+        if not deform:
+            relo = ants.apply_transforms( t1, relo,
+                imgprepro['reg']['invtransforms'][0], whichtoinvert=[True],
+                interpolator=interpolator )
+        else:
+            relo = ants.apply_transforms( t1, relo,
+                imgprepro['reg']['invtransforms'], interpolator=interpolator )
+        return relo
+
+
     ####################################################
     physspaceBF = imgprepro['imgc']
     tfarr1 = tf.cast( physspaceBF.numpy() ,'float32' )
@@ -1801,24 +1826,20 @@ def deep_nbm( t1,
     sigmoidpred = snpred[1]
     snpred1_image = ants.from_numpy( sigmoidpred[0,:,:,:,0] )
     snpred1_image = ants.copy_image_info( physspaceBF, snpred1_image )
+    snpred1_image = map_back( snpred1_image, t1, imgprepro, 'linear', deform )
     bint = ants.threshold_image( snpred1_image, 0.5, 1.0 )
     probability_images = []
     for jj in range(number_of_classification_labels-1):
                 temp = ants.from_numpy( segpred[0,:,:,:,jj+1] )
-                probability_images.append( ants.copy_image_info( physspaceBF, temp ) )
+                temp = ants.copy_image_info( physspaceBF, temp )
+                temp = map_back( temp, t1, imgprepro, 'linear', deform )
+                probability_images.append( temp )
     image_matrix = ants.image_list_to_matrix(probability_images, bint)
     segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1)
     segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), bint)[0]
     relabeled_image = ants.image_clone(segmentation_image)
     for i in range(1,len(group_labels)):
                 relabeled_image[segmentation_image==(i)] = group_labels[i]
-    if not deform:
-        relabeled_image = ants.apply_transforms( t1, relabeled_image,
-                        imgprepro['reg']['invtransforms'][0], whichtoinvert=[True],
-                        interpolator='genericLabel' )
-    else:
-        relabeled_image = ants.apply_transforms( t1, relabeled_image,
-                        imgprepro['reg']['invtransforms'], interpolator='genericLabel' )
 
     bfsegdesc = map_segmentation_to_dataframe( 'nbm3CH13', relabeled_image )
 
@@ -2203,16 +2224,24 @@ def deep_cit168( t1, binary_mask = None,
         segpred = nbmpred[0]
         sigmoidpred = nbmpred[1]
 
+        def map_back_cit( relo, t1, orireg, interpolator='linear' ):
+            relo = ants.apply_transforms( t1, relo,
+                    orireg['invtransforms'][0], whichtoinvert=[True],
+                    interpolator=interpolator )
+            return relo
+
         nbmpred1_image = ants.from_numpy( sigmoidpred[0,:,:,:,0] )
         nbmpred1_image = ants.copy_image_info( physspaceCIT, nbmpred1_image )
+        nbmpred1_image = map_back_cit( nbmpred1_image, t1, orireg, 'linear'  )
         if binary_mask is not None:
-            nbmpred1_image = nbmpred1_image * binary_mask_use
+            nbmpred1_image = nbmpred1_image * binary_mask
         bint = ants.threshold_image( nbmpred1_image, 0.5, 1.0 )
 
         probability_images = []
         for jj in range(1,len(group_labels)):
             temp = ants.from_numpy( segpred[0,:,:,:,jj] )
             temp = ants.copy_image_info( physspaceCIT, temp )
+            temp = map_back_cit( temp, t1, orireg, 'linear'  )
             probability_images.append( temp )
 
         image_matrix = ants.image_list_to_matrix(probability_images, bint)
@@ -2225,11 +2254,6 @@ def deep_cit168( t1, binary_mask = None,
                 if group_labels[int(i)] < 33:
                     temp = ants.iMath( temp, "GetLargestComponent")
                 relabeled_image = relabeled_image + temp*group_labels[int(i)]
-        relabeled_image = ants.resample_image_to_target(relabeled_image, image, interp_type='genericLabel')
-        if registration:
-                    relabeled_image = ants.apply_transforms( t1, relabeled_image,
-                            orireg['invtransforms'][0], whichtoinvert=[True],
-                            interpolator='genericLabel' )
         cit168seg = cit168seg + relabeled_image
 
     cit168segdesc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168seg ).dropna(axis=0)
