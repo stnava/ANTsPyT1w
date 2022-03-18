@@ -1130,7 +1130,7 @@ def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
                     ulabs,
                     max_lab_plus_one=True  )['super_resolution_segmentation']
 
-def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, do_deep_bf=True, verbose=False ):
+def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
     """
     Apply SR to most output from the hierarchical function
 
@@ -1140,9 +1140,6 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, do_deep_bf=True, verb
 
     tissue_sr : boolean, if True will perform SR on the whole image which can
         be very memory intensive; only use if you have plenty of RAM.
-
-    do_deep_bf : boolean, if True will perform SR on the local image then run
-        the segmentation method vs the opposite (default)
 
     verbose : boolean
 
@@ -1163,7 +1160,6 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, do_deep_bf=True, verb
         print( 'assemble summaries' )
     t1hier['dataframes']["dktcortex"]= map_segmentation_to_dataframe( "dkt", t1hier['dkt_parc']['dkt_cortex'] )
     t1hier['dataframes']["mtl"]=map_segmentation_to_dataframe( 'mtl_description',  t1hier['mtl'] )
-    t1hier['dataframes']["bf"]=map_segmentation_to_dataframe( 'nbm3CH13', t1hier['bf'] )
     t1hier['dataframes']["cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['cit168lab'] )
     t1hier['dataframes']["snseg"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['snseg'] )
 
@@ -1190,12 +1186,11 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, do_deep_bf=True, verb
     t1hier['deep_cit168lab'] = mydcit['segmentation']
     t1hier['dataframes']["deep_cit168"]=mydcit['description']
 
-    if do_deep_bf:
-        deep_bf = deep_nbm( t1hier['brain_n4_dnz'] * braintissuemask,
+    deep_bf = deep_nbm( t1hier['brain_n4_dnz'] * braintissuemask,
             get_data("deep_nbm_rank",target_extension='.h5'),
             csfquantile=None, aged_template=True )
-        t1hier['bf'] = deep_bf['segmentation']
-        t1hier['dataframes']["bf"]=deep_bf['description']
+    t1hier['bf'] = deep_bf['segmentation']
+    t1hier['dataframes']["bf"]=deep_bf['description']
 
     return t1hier
 
@@ -2375,13 +2370,13 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         img = ants.iMath( x, "Normalize" )
 
     if verbose:
-        print("rbp")
+        print("QC")
 
     # this is an unbiased method for identifying predictors that can be used to
     # rank / sort data into clusters, some of which may be associated
     # with outlierness or low-quality data
     templatesmall = ants.resample_image( templateb, (91,109,91), use_voxels=True )
-    rbp = random_basis_projection( img, templatesmall )
+    myqc = inspect_raw_t1( img, output_prefix=output_prefix, option='brain' )
 
     if verbose:
         print("intensity")
@@ -2390,9 +2385,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     img = ants.iMath( img, "Normalize" )
 
     # optional - quick look at result
-    bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
-    ants.plot(img * 255.0,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
-        filename = bxt_png )
+    # bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
+    # ants.plot(img * 255.0,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
+    #    filename = bxt_png )
 
     if verbose:
         print("hemi")
@@ -2539,7 +2534,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
 
     mydataframes = {
-        "rbp": rbp,
+        "rbp": myqc['brain'],
         "hemispheres":hemi,
         "tissues":tissue,
         "dktlobes":dktl,
@@ -2558,7 +2553,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     outputs = {
         "brain_n4_dnz": img,
-        "brain_n4_dnz_png": bxt_png,
+        "brain_n4_dnz_png": myqc['brain_image'],
         "brain_extraction": imgbxt,
         "tissue_seg_png": tissue_seg_png,
         "left_right": mylr,
