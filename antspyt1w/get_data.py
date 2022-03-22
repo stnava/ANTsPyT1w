@@ -1130,7 +1130,7 @@ def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
                     ulabs,
                     max_lab_plus_one=True  )['super_resolution_segmentation']
 
-def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
+def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose=False ):
     """
     Apply SR to most output from the hierarchical function
 
@@ -1140,6 +1140,8 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
 
     tissue_sr : boolean, if True will perform SR on the whole image which can
         be very memory intensive; only use if you have plenty of RAM.
+
+    blending : if not None, will blend the SR
 
     verbose : boolean
 
@@ -1155,6 +1157,8 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
         print( 'dkt_cortex' )
     temp = label_and_img_to_sr( img, t1hier['dkt_parc']['dkt_cortex'], sr_model, return_intensity=True )
     tempupimg = temp['super_resolution']
+    if blending is not None:
+        tempupimg = tempupimg * (1.0 - blending ) + ants.iMath( tempupimg, "Sharpen" ) * blending
     t1hier['dkt_parc']['dkt_cortex']= temp['super_resolution_segmentation']
     if verbose:
         print( 'assemble summaries' )
@@ -1174,6 +1178,8 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
                     dilation_amount=0, probability_images=None,
                     probability_labels=[1,2,3,4,5,6,7,8,9,10,11,12],
                     max_lab_plus_one=True, verbose=True )
+        if blending is not None:
+            mysr['super_resolution'] = mysr['super_resolution'] * (1.0 - blending ) + ants.iMath( mysr['super_resolution'], "Sharpen" ) * blending
         # fix the doubled labels
         temp = ants.image_clone( mysr['super_resolution_segmentation'] )
         for k in [7,8,9,10,11,12] :
