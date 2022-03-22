@@ -1174,8 +1174,12 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, verbose=False ):
                     dilation_amount=0, probability_images=None,
                     probability_labels=[1,2,3,4,5,6,7,8,9,10,11,12],
                     max_lab_plus_one=True, verbose=True )
+        # fix the doubled labels
+        temp = ants.image_clone( mysr['super_resolution_segmentation'] )
+        for k in [7,8,9,10,11,12] :
+            temp[ temp == k ] = temp[ temp == k ] - 6
         t1hier['brain_n4_dnz'] = mysr['super_resolution']
-        t1hier['dkt_parc']['tissue_segmentation'] = mysr['super_resolution_segmentation']
+        t1hier['dkt_parc']['tissue_segmentation'] = temp
     else:
         t1hier['brain_n4_dnz'] = tempupimg
         t1hier['dkt_parc']['tissue_segmentation'] = ants.resample_image_to_target(
