@@ -1191,6 +1191,8 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
         t1hier['dkt_parc']['tissue_segmentation'] = ants.resample_image_to_target(
             t1hier['dkt_parc']['tissue_segmentation'], tempupimg, 'genericLabel')
 
+    tissue = map_segmentation_to_dataframe( "tissues", t1hier['dkt_parc']['tissue_segmentation'] )
+    t1hier['dataframes']['tissues'] = tissue
     braintissuemask = ants.threshold_image( t1hier['dkt_parc']['tissue_segmentation'], 2, 6 )
     mydcit = deep_cit168( t1hier['brain_n4_dnz'], binary_mask = braintissuemask )
     t1hier['deep_cit168lab'] = mydcit['segmentation']
