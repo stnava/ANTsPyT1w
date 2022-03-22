@@ -1181,7 +1181,7 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
         if blending is not None:
             mysr['super_resolution'] = mysr['super_resolution'] * (1.0 - blending ) + ants.iMath( mysr['super_resolution'], "Sharpen" ) * blending
         # fix the doubled labels
-        temp = ants.image_clone( mysr['super_resolution_segmentation'] )
+        temp = mysr['super_resolution_segmentation']
         for k in [7,8,9,10,11,12] :
             temp[ temp == k ] = temp[ temp == k ] - 6
         t1hier['brain_n4_dnz'] = mysr['super_resolution']
@@ -1191,7 +1191,14 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
         t1hier['dkt_parc']['tissue_segmentation'] = ants.resample_image_to_target(
             t1hier['dkt_parc']['tissue_segmentation'], tempupimg, 'genericLabel')
 
-    tissue = map_segmentation_to_dataframe( "tissues", t1hier['dkt_parc']['tissue_segmentation'] )
+    if verbose:
+        print("unique tissue labels")
+        print( np.unique(t1hier['dkt_parc']['tissue_segmentation'].numpy()) )
+
+    tissue = map_segmentation_to_dataframe( "tissues",
+        ants.mask_image(
+            t1hier['dkt_parc']['tissue_segmentation'],
+            t1hier['dkt_parc']['tissue_segmentation'],  [1,2,3,4,5,6] ) )
     t1hier['dataframes']['tissues'] = tissue
     braintissuemask = ants.threshold_image( t1hier['dkt_parc']['tissue_segmentation'], 2, 6 )
     mydcit = deep_cit168( t1hier['brain_n4_dnz'], binary_mask = braintissuemask )
