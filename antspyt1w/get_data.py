@@ -1295,33 +1295,38 @@ def deep_mtl(t1, sr_model=None, verbose=True):
             t1_warped, df['probability_images'], sr_model )
         df['probability_images'] = newprobs['sr_probabilities']
 
-    probability_images = list()
-    for i in range(len(df['probability_images'])):
-        probability_image = ants.apply_transforms(fixed=t1,
-                                                  moving=df['probability_images'][i],
-                                                  transformlist=template_transforms['invtransforms'],
-                                                  whichtoinvert=[True],
-                                                  interpolator="linear",
-                                                  verbose=verbose)
-        probability_images.append(probability_image)
+    if False:
+        probability_images = list()
+        for i in range(len(df['probability_images'])):
+            probability_image = ants.apply_transforms(fixed=t1,
+                                                      moving=df['probability_images'][i],
+                                                      transformlist=template_transforms['invtransforms'],
+                                                      whichtoinvert=[True],
+                                                      interpolator="linear",
+                                                      verbose=verbose)
+            probability_images.append(probability_image)
+        image_matrix = ants.image_list_to_matrix(probability_images[1:(len(probability_images))], t1 * 0 + 1)
+        background_foreground_matrix = np.stack([ants.image_list_to_matrix([probability_images[0]], t1 * 0 + 1),
+                                                np.expand_dims(np.sum(image_matrix, axis=0), axis=0)])
+        foreground_matrix = np.argmax(background_foreground_matrix, axis=0)
+        segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1) * foreground_matrix
+        segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), t1 * 0 + 1)[0]
+        relabeled_image = ants.image_clone(segmentation_image)
+        for i in range(len(labels)):
+            relabeled_image[segmentation_image==i] = labels[i]
 
-    image_matrix = ants.image_list_to_matrix(probability_images[1:(len(probability_images))], t1 * 0 + 1)
-    background_foreground_matrix = np.stack([ants.image_list_to_matrix([probability_images[0]], t1 * 0 + 1),
-                                            np.expand_dims(np.sum(image_matrix, axis=0), axis=0)])
-    foreground_matrix = np.argmax(background_foreground_matrix, axis=0)
-    segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1) * foreground_matrix
-    segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), t1 * 0 + 1)[0]
-
-    relabeled_image = ants.image_clone(segmentation_image)
-    for i in range(len(labels)):
-        relabeled_image[segmentation_image==i] = labels[i]
-
+    relabeled_image = ants.apply_transforms( fixed=t1,
+                                          moving=df['segmentation_image'],
+                                          transformlist=template_transforms['invtransforms'],
+                                          whichtoinvert=[True],
+                                          interpolator="genericLabel",
+                                          verbose=verbose)
     mtl_description = map_segmentation_to_dataframe( 'mtl_description', relabeled_image )
 
     deep_mtl_dictionary = {
                           'mtl_description':mtl_description,
-                          'mtl_segmentation':relabeled_image,
-                          'mtl_probability_images':probability_images
+                          'mtl_segmentation':relabeled_image
+#                          'mtl_probability_images':probability_images
                           }
     return(deep_mtl_dictionary)
 
