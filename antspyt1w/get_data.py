@@ -617,7 +617,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         }
 
 
-def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
+def brain_extraction( x, dilation = 8.0, method = 'v0', deform=True, verbose=False ):
     """
     quick brain extraction for individual images
 
@@ -627,9 +627,16 @@ def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
 
     method: version currently v0 or any other string gives two different results
 
+    deform: map the image to the training hypersphere before running the extraction
+
     verbose: boolean
 
     """
+    if deform:
+        reorient_template_file_name_path = antspynet. get_antsxnet_data("S_template3" )
+        template = ants.image_read( reorient_template_file_name_path )
+        reg = ants.registration( template, x, 'SyN' )
+
     closedilmm = 5.0
     spacing = ants.get_spacing(x)
     spacing_product = spacing[0] * spacing[1] * spacing[2]
@@ -643,6 +650,8 @@ def brain_extraction( x, dilation = 8.0, method = 'v0', verbose=False ):
             print("method v0")
         bxtmethod = 't1combined[' + str(closedilRound) +']' # better for individual subjects
         bxt = antspynet.brain_extraction( xn3, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent").iMath("FillHoles")
+        if deform:
+            bxt = ants.apply_transforms( x, bxt, reg['invtransforms'], interpolator='nearestNeighbor' )
         return bxt
     if verbose:
         print("method candidate")
