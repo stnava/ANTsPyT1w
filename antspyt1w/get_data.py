@@ -643,8 +643,12 @@ def brain_extraction( x, dilation = 8.0, method = 'v0', deform=True, verbose=Fal
     spcmin = min( spacing )
     dilationRound = int(np.round( dilation / spcmin ))
     closedilRound = int(np.round( closedilmm / spcmin ))
-    xn3 = ants.n3_bias_field_correction( x, 8 ).n3_bias_field_correction( 4 )
-    xn3 = ants.iMath(xn3, "TruncateIntensity",0.001,0.999).iMath("Normalize")
+    if deform:
+        xn3 = ants.n3_bias_field_correction( reg['warpedmovout'], 8 ).n3_bias_field_correction( 4 )
+        xn3 = ants.iMath(xn3, "TruncateIntensity",0.001,0.999).iMath("Normalize")
+    else:
+        xn3 = ants.n3_bias_field_correction( x, 8 ).n3_bias_field_correction( 4 )
+        xn3 = ants.iMath(xn3, "TruncateIntensity",0.001,0.999).iMath("Normalize")
     if method == 'v0':
         if verbose:
             print("method v0")
