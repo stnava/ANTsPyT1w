@@ -653,13 +653,13 @@ def brain_extraction( x, dilation = 8.0, method = 'v0', deform=True, verbose=Fal
         if verbose:
             print("method v0")
         bxtmethod = 't1combined[' + str(closedilRound) +']' # better for individual subjects
-        bxt = antspynet.brain_extraction( xn3, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent").iMath("FillHoles")
+        bxt = antspynet.brain_extraction( xn3, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent",1).iMath("FillHoles")
         if deform:
             bxt = ants.apply_transforms( x, bxt, reg['invtransforms'], interpolator='nearestNeighbor' )
         return bxt
     if verbose:
         print("method candidate")
-    bxt0 = antspynet.brain_extraction( xn3, "t1" ).threshold_image(0.5,1.0).iMath("GetLargestComponent").morphology( "close", closedilRound ).iMath("FillHoles")
+    bxt0 = antspynet.brain_extraction( xn3, "t1" ).threshold_image(0.5,1.0).iMath("GetLargestComponent",1).morphology( "close", closedilRound ).iMath("FillHoles")
     bxt0dil = ants.iMath( bxt0, "MD", dilationRound )
     image = ants.iMath( xn3 * bxt0dil,"Normalize")*255
     # no no brainer
@@ -1068,14 +1068,14 @@ def deep_hippo(
             whichtoinvert=[True],
             interpolator='genericLabel',
         )
-        avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ).iMath("GetLargestComponent") / float(number_of_tries)
-        avgright = avgright + ants.threshold_image( hippr, 1, 1 ).iMath("GetLargestComponent") / float(number_of_tries)
+        avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ).iMath("GetLargestComponent",1) / float(number_of_tries)
+        avgright = avgright + ants.threshold_image( hippr, 1, 1 ).iMath("GetLargestComponent",1) / float(number_of_tries)
 
 
     avgright = ants.iMath(avgright,"Normalize")  # output: probability image right
     avgleft = ants.iMath(avgleft,"Normalize")    # output: probability image left
-    hippright_bin = ants.threshold_image( avgright, 0.5, 2.0 ).iMath("GetLargestComponent")
-    hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent")
+    hippright_bin = ants.threshold_image( avgright, 0.5, 2.0 ).iMath("GetLargestComponent",1)
+    hippleft_bin = ants.threshold_image( avgleft, 0.5, 2.0 ).iMath("GetLargestComponent",1)
     hipp_bin = hippleft_bin + hippright_bin * 2
 
     hippleftORlabels  = ants.label_geometry_measures(hippleft_bin, avgleft)
@@ -2084,7 +2084,7 @@ def deep_nbm_old( t1, ch13_weights, nbm_weights, registration=True,
         sigmoidpred = nbmpred[1]
         nbmpred1_image = ants.from_numpy( sigmoidpred[0,:,:,:,0] )
         nbmpred1_image = ants.copy_image_info( physspaceNBM, nbmpred1_image )
-        bint = ants.threshold_image( nbmpred1_image, 0.5, 1.0 ).iMath("GetLargestComponent")
+        bint = ants.threshold_image( nbmpred1_image, 0.5, 1.0 ).iMath("GetLargestComponent",1)
         probability_images = []
         for jj in range(3):
             temp = ants.from_numpy( segpred[0,:,:,:,jj+1] )
@@ -2287,7 +2287,7 @@ def deep_cit168( t1, binary_mask = None,
             if i > 0 :
                 temp = ants.threshold_image(segmentation_image,i,i)
                 if group_labels[int(i)] < 33:
-                    temp = ants.iMath( temp, "GetLargestComponent")
+                    temp = ants.iMath( temp, "GetLargestComponent",1)
                 relabeled_image = relabeled_image + temp*group_labels[int(i)]
         cit168seg = cit168seg + relabeled_image
 
