@@ -653,13 +653,13 @@ def brain_extraction( x, dilation = 8.0, method = 'v0', deform=True, verbose=Fal
         if verbose:
             print("method v0")
         bxtmethod = 't1combined[' + str(closedilRound) +']' # better for individual subjects
-        bxt = antspynet.brain_extraction( xn3, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent",1).iMath("FillHoles")
+        bxt = antspynet.brain_extraction( xn3, bxtmethod ).threshold_image(2,3).iMath("GetLargestComponent",50).iMath("FillHoles")
         if deform:
             bxt = ants.apply_transforms( x, bxt, reg['invtransforms'], interpolator='nearestNeighbor' )
         return bxt
     if verbose:
         print("method candidate")
-    bxt0 = antspynet.brain_extraction( xn3, "t1" ).threshold_image(0.5,1.0).iMath("GetLargestComponent",1).morphology( "close", closedilRound ).iMath("FillHoles")
+    bxt0 = antspynet.brain_extraction( xn3, "t1" ).threshold_image(0.5,1.0).iMath("GetLargestComponent",50).morphology( "close", closedilRound ).iMath("FillHoles")
     bxt0dil = ants.iMath( bxt0, "MD", dilationRound )
     image = ants.iMath( xn3 * bxt0dil,"Normalize")*255
     # no no brainer
@@ -894,7 +894,7 @@ def deep_tissue_segmentation( x, template=None, registration_map=None,
         )
 
     if atropos_prior is not None:
-        msk = ants.threshold_image( dapper['segmentation_image'], 2, 3 ).iMath("GetLargestComponent")
+        msk = ants.threshold_image( dapper['segmentation_image'], 2, 3 ).iMath("GetLargestComponent",50)
         msk = ants.morphology( msk, "close", 2 )
         mskfull = ants.threshold_image( dapper['segmentation_image'], 1, 6 )
         mskfull = mskfull - msk
