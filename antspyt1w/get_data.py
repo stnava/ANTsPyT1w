@@ -1168,7 +1168,7 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
     """
     # from  >>> t1h.keys()
     img = t1hier['brain_n4_dnz']
-    myvarlist = [ 'mtl', 'cit168lab', 'snseg' ]
+    myvarlist = [ 'mtl', 'cit168lab', 'snseg', 'bf', 'deep_cit168lab' ]
     for myvar in myvarlist:
         if verbose:
             print( myvar )
@@ -1186,6 +1186,8 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
     t1hier['dataframes']["mtl"]=map_segmentation_to_dataframe( 'mtl_description',  t1hier['mtl'] )
     t1hier['dataframes']["cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['cit168lab'] )
     t1hier['dataframes']["snseg"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['snseg'] )
+    t1hier['dataframes']["bf"]=map_segmentation_to_dataframe( 'nbm3CH13', t1hier['bf'] )
+    t1hier['dataframes']["deep_cit168"]=map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', t1hier['deep_cit168lab'] )
 
     if tissue_sr:
         bmask = ants.threshold_image( t1hier['dkt_parc']['tissue_segmentation'], 1, 6 )
@@ -1221,16 +1223,17 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
             t1hier['dkt_parc']['tissue_segmentation'],  [1,2,3,4,5,6] ) )
     t1hier['dataframes']['tissues'] = tissue
     braintissuemask = ants.threshold_image( t1hier['dkt_parc']['tissue_segmentation'], 2, 6 )
-    mydcit = deep_cit168( t1hier['brain_n4_dnz'], binary_mask = braintissuemask )
-    t1hier['deep_cit168lab'] = mydcit['segmentation']
-    t1hier['dataframes']["deep_cit168"]=mydcit['description']
+#
+#    mydcit = deep_cit168( t1hier['brain_n4_dnz'], binary_mask = braintissuemask )
+#    t1hier['deep_cit168lab'] = mydcit['segmentation']
+#    t1hier['dataframes']["deep_cit168"]=mydcit['description']
 
-    deep_bf = deep_nbm( t1hier['brain_n4_dnz'] * braintissuemask,
-            get_data("deep_nbm_rank",target_extension='.h5'),
-            csfquantile=None, aged_template=True )
-    t1hier['bf'] = deep_bf['segmentation']
-    t1hier['dataframes']["bf"]=deep_bf['description']
-
+#    deep_bf = deep_nbm( t1hier['brain_n4_dnz'] * braintissuemask,
+#            get_data("deep_nbm_rank",target_extension='.h5'),
+#            csfquantile=None, aged_template=True )
+#    t1hier['bf'] = deep_bf['segmentation']
+#    t1hier['dataframes']["bf"]=deep_bf['description']
+#
     return t1hier
 
 
@@ -2193,7 +2196,7 @@ def deep_cit168( t1, binary_mask = None,
     patchSize = [ 160,160,112 ]
     if priors is None:
         priortosub = ants.apply_transforms( image, myprior,
-            orireg['invtransforms'][1], interpolator='nearestNeighbor' )
+            orireg['invtransforms'][1], interpolator='genericLabel' )
     else:
         if verbose:
             print("using priors")
