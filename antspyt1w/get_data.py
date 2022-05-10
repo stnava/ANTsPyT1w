@@ -2858,7 +2858,7 @@ def write_hierarchical( hierarchical_object, output_prefix ):
 
 
 
-def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=None, identifier_name='u_hier_id' ):
+def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names = None , identifier=None, identifier_name='u_hier_id' ):
     """
     standardized merging of output for dataframes produced by hierarchical function.
 
@@ -2882,6 +2882,16 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, identifier=
         if hierarchical_dataframes[myvar] is not None:
             jdf = hierarchical_dataframes[myvar].dropna(axis=0)
             jdf = jdf.loc[:, ~jdf.columns.str.contains('^Unnamed')]
+            if col_names is not None : 
+                for col_name in col_names : 
+                    if jdf.shape[0] > 1 and any( jdf.columns.str.contains(col_name)):
+                        varsofinterest = ["Description", col_name]
+                        jdfsub = jdf[varsofinterest]
+                        jdfsub.insert(loc=0, column=identifier_name, value=identifier)
+                        jdfsub = jdfsub.set_index([identifier_name, 'Description'])[col_name].unstack().add_prefix(col_name + '_')
+                        jdfsub.columns=jdfsub.columns
+                        jdfsub = jdfsub.rename(mapper=lambda x: x.strip().replace(' ', '_').lower(), axis=1)
+                        wide_df = wide_df.join(jdfsub,how='outer')
             if jdf.shape[0] > 1 and any( jdf.columns.str.contains('VolumeInMillimeters')):
                 varsofinterest = ["Description", "VolumeInMillimeters"]
                 jdfsub = jdf[varsofinterest]
