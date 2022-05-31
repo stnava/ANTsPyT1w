@@ -2945,14 +2945,14 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
 
     return wide_df
     
-    Example
-    -------
-    >>> import ants
-    >>> intensity_image = ants.image_read(antspyt1w.get_data('nbm_template', target_extension = '.nii.gz'))
-    >>> segmentation_image = ants.image_read(antspyt1w.get_data('nbm_template_seg', target_extension = '.nii.gz'))
-    >>> df = antspyt1w.map_intensity_to_dataframe('nbm3CH13', intensity_image, segmentation_image)
-    >>> df = {'dataframes' : df}
-    >>> df_bfwide = merge_hierarchical_csvs_to_wide_format(df, col_names = ['Mean'], identifier=None, identifier_name='u_hier_id')
+    # Example
+    # -------
+    # >>> import ants
+    # >>> intensity_image = ants.image_read(antspyt1w.get_data('nbm_template', target_extension = '.nii.gz'))
+    # >>> segmentation_image = ants.image_read(antspyt1w.get_data('nbm_template_seg', target_extension = '.nii.gz'))
+    # >>> df = antspyt1w.map_intensity_to_dataframe('nbm3CH13', intensity_image, segmentation_image)
+    # >>> df = {'dataframes' : df}
+    # >>> df_bfwide = merge_hierarchical_csvs_to_wide_format(df, col_names = ['Mean'], identifier=None, identifier_name='u_hier_id')
 
 
 
