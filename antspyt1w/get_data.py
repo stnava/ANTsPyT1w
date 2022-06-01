@@ -37,7 +37,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=41, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=43, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -2882,8 +2882,8 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
         if hierarchical_dataframes[myvar] is not None:
             jdf = hierarchical_dataframes[myvar].dropna(axis=0)
             jdf = jdf.loc[:, ~jdf.columns.str.contains('^Unnamed')]
-            if col_names is not None : 
-                for col_name in col_names : 
+            if col_names is not None :
+                for col_name in col_names :
                     if jdf.shape[0] > 1 and any( jdf.columns.str.contains(col_name)):
                         varsofinterest = ["Description", col_name]
                         jdfsub = jdf[varsofinterest]
@@ -2944,7 +2944,7 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
     wide_df.insert(loc = 0, column = identifier_name, value = identifier)
 
     return wide_df
-    
+
     # Example
     # -------
     # >>> import ants
