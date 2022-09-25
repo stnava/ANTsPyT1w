@@ -2746,14 +2746,7 @@ def zoom_syn( target_image, template, template_segmentations,
 
 
 
-def read_hierarchical(
-    output_prefix,
-    dktlist = [
-        'tissue_segmentation',
-        'dkt_parcellation',
-        'dkt_lobes',
-        'dkt_cortex',
-        'hemisphere_labels' ] ):
+def read_hierarchical( output_prefix ):
     """
     standardized reading of output for hierarchical function
 
@@ -2762,14 +2755,6 @@ def read_hierarchical(
 
     output_prefix : string path including directory and file prefix that was
         be applied to all output, both csv and images.
-
-    dktlist : a list of the naming conventions for the dkt parcellation outputs.
-        should include file names extensions for:
-            - tissue_segmentation
-            - dkt_parcellation
-            - dkt_lobes
-            - dkt_cortex
-            - hemisphere_labels
 
     Returns
     -------
@@ -2838,8 +2823,13 @@ def read_hierarchical(
         if hierarchical_object[myvar] is None and exists( output_prefix + myvar + '.nii.gz' ):
             hierarchical_object[myvar] = ants.image_read( output_prefix + myvar + '.nii.gz' )
 
-
-    for myvar in dktlist:
+    myvarlist = [
+        'tissue_segmentation',
+        'dkt_parcellation',
+        'dkt_lobes',
+        'dkt_cortex',
+        'hemisphere_labels' ]
+    for myvar in myvarlist:
         if hierarchical_object['dkt_parc'][myvar] is None and exists( output_prefix + myvar + '.nii.gz' ):
             hierarchical_object['dkt_parc'][myvar] = ants.image_read( output_prefix + myvar + '.nii.gz' )
 
