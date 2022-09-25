@@ -1708,8 +1708,11 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
 def deep_nbm( t1,
     nbm_weights,
     binary_mask=None,
-    deform=False, aged_template=False,
-    csfquantile=None, verbose=False ):
+    deform=False,
+    aged_template=False,
+    csfquantile=None,
+    reflect=False,
+    verbose=False ):
 
     """
     CH13 and Nucleus basalis of Meynert segmentation and subdivision
@@ -1769,7 +1772,7 @@ def deep_nbm( t1,
     reflection_labels = [0,2,1,6,7,8,3,4,5]
     crop_size = [144,96,64]
 
-    def nbmpreprocess( img, pt_labels, group_labels, masker=None, csfquantile=None, returndef=False ):
+    def nbmpreprocess( img, pt_labels, group_labels, masker=None, csfquantile=None, returndef=False, reflect=False ):
 
         if masker is None:
             imgr = ants.rank_intensity( img )
@@ -1783,9 +1786,22 @@ def deep_nbm( t1,
             imgr = imgr * masker
 
         imgrsmall = ants.resample_image( imgr, [1,1,1] )
-        reg = ants.registration( refimgsmall, imgrsmall, 'antsRegistrationSyNQuickRepro[s]',
-            reg_iterations = [200,200,20],
-            verbose=False )
+        if not reflect:
+            reg = ants.registration(
+                refimgsmall,
+                imgrsmall,
+                'antsRegistrationSyNQuickRepro[s]',
+                reg_iterations = [200,200,20],
+                verbose=False )
+        else:
+            myref = ants.reflect_image( imgrsmall, axis=0, tx='Translation' )
+            reg = ants.registration(
+                refimgsmall,
+                imgrsmall,
+                'antsRegistrationSyNQuickRepro[s]',
+                reg_iterations = [200,200,20],
+                initial_transform = myref['fwdtransforms'][0],
+                verbose=False )
         if not returndef:
             imgraff = ants.apply_transforms( refimg, imgr, reg['fwdtransforms'][1], interpolator='linear' )
             imgseg = ants.apply_transforms( refimg, refimgseg, reg['invtransforms'][1], interpolator='nearestNeighbor' )
@@ -1845,7 +1861,8 @@ def deep_nbm( t1,
 
     imgprepro = nbmpreprocess( t1, pt_labels, group_labels,
         csfquantile = csfquantile,
-        returndef = deform )
+        returndef = deform,
+        reflect = reflect )
 
 
     def map_back( relo, t1, imgprepro, interpolator='linear', deform = False ):
@@ -1883,12 +1900,19 @@ def deep_nbm( t1,
     segmentation_matrix = (np.argmax(image_matrix, axis=0) + 1)
     segmentation_image = ants.matrix_to_images(np.expand_dims(segmentation_matrix, axis=0), bint)[0]
     relabeled_image = ants.image_clone(segmentation_image)
-    for i in range(1,len(group_labels)):
-                relabeled_image[segmentation_image==(i)] = group_labels[i]
+    if not reflect:
+        for i in range(1,len(group_labels)):
+                    relabeled_image[segmentation_image==(i)] = group_labels[i]
+    else:
+        for i in range(1,len(group_labels)):
+                    relabeled_image[segmentation_image==(i)] = reflection_labels[i]
 
     bfsegdesc = map_segmentation_to_dataframe( 'nbm3CH13', relabeled_image )
 
-    return { 'segmentation':relabeled_image, 'description':bfsegdesc, 'mask': imgprepro['mask'] }
+    return { 'segmentation':relabeled_image,
+        'description':bfsegdesc,
+        'mask': imgprepro['mask'],
+        'probability_images': probability_images }
 
 
 def deep_nbm_old( t1, ch13_weights, nbm_weights, registration=True,
@@ -2722,7 +2746,14 @@ def zoom_syn( target_image, template, template_segmentations,
 
 
 
-def read_hierarchical( output_prefix ):
+def read_hierarchical(
+    output_prefix,
+    dktlist = [
+        'tissue_segmentation',
+        'dkt_parcellation',
+        'dkt_lobes',
+        'dkt_cortex',
+        'hemisphere_labels' ] ):
     """
     standardized reading of output for hierarchical function
 
@@ -2731,6 +2762,14 @@ def read_hierarchical( output_prefix ):
 
     output_prefix : string path including directory and file prefix that was
         be applied to all output, both csv and images.
+
+    dktlist : a list of the naming conventions for the dkt parcellation outputs.
+        should include file names extensions for:
+            - tissue_segmentation
+            - dkt_parcellation
+            - dkt_lobes
+            - dkt_cortex
+            - hemisphere_labels
 
     Returns
     -------
@@ -2799,13 +2838,8 @@ def read_hierarchical( output_prefix ):
         if hierarchical_object[myvar] is None and exists( output_prefix + myvar + '.nii.gz' ):
             hierarchical_object[myvar] = ants.image_read( output_prefix + myvar + '.nii.gz' )
 
-    myvarlist = [
-        'tissue_segmentation',
-        'dkt_parcellation',
-        'dkt_lobes',
-        'dkt_cortex',
-        'hemisphere_labels' ]
-    for myvar in myvarlist:
+
+    for myvar in dktlist:
         if hierarchical_object['dkt_parc'][myvar] is None and exists( output_prefix + myvar + '.nii.gz' ):
             hierarchical_object['dkt_parc'][myvar] = ants.image_read( output_prefix + myvar + '.nii.gz' )
 
