@@ -3305,6 +3305,6 @@ def kelly_kapowski_thickness( x, labels, label_description='dkt', iterations=45,
                   labels * kkthkmask )
     kkdf_wide = merge_hierarchical_csvs_to_wide_format( {'KK' : kkdf}, col_names = ['Mean'] )
     return {
-        'thickness_image' : kkthki,
+        'thickness_image' : kkthk,
         'thickness_dataframe' : kkdf_wide
     }
