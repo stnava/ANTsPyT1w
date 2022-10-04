@@ -3257,3 +3257,49 @@ def super_resolution_segmentation_with_probabilities(
         'sr_probabilities':srproblist,
     }
     return labels
+
+def kelly_kapowski_thickness( x, iterations=45, verbose=False ):
+    """
+    Apply a two-channel super resolution model to an image and probability pair.
+
+    Arguments
+    ---------
+    x : ANTsImage
+        t1 brain extracted
+
+    iterations : integer
+        number of iterations ( probably not to be changed except for testing )
+
+    verbose : boolean
+
+    Returns
+    -------
+
+    dictionary w/ following key/value pairs:
+        `thickness_image` : ANTsImage
+
+        `thickness_dataframe` : dataframe with mean thickness values
+
+    Example
+    -------
+    >>> import ants
+    >>> thk = antspyt1w.kelly_kapowski_thickness( x )
+    """
+    if verbose:
+        myverb=1
+    else:
+        myverb=0
+    mydap = antspyt1w.deep_tissue_segmentation( x )
+    kkthk = ants.kelly_kapowski( s=mydap['segmentation_image'],
+            g=mydap['probability_images'][2], w=mydap['probability_images'][3],
+            its=iterations, r=0.025, m=1.5, verbose=myverb )
+    kkthkmask = ants.threshold_image( kkthk, 0.25, 1e6 )
+    kkdf = antspyt1w.map_intensity_to_dataframe(
+                  'dkt',
+                  kkthk,
+                  hier['dkt_parc']['dkt_cortex'] * kkthkmask )
+    kkdf_wide = antspyt1w.merge_hierarchical_csvs_to_wide_format( {'KK' : kkdf}, col_names = ['Mean'] )
+    return {
+        'thickness_image' : kkthki,
+        'thickness_dataframe' : kkdf_wide
+    }
