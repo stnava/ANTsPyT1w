@@ -3258,7 +3258,7 @@ def super_resolution_segmentation_with_probabilities(
     }
     return labels
 
-def kelly_kapowski_thickness( x, iterations=45, verbose=False ):
+def kelly_kapowski_thickness( x, labels, label_description='dkt', iterations=45, verbose=False ):
     """
     Apply a two-channel super resolution model to an image and probability pair.
 
@@ -3266,6 +3266,11 @@ def kelly_kapowski_thickness( x, iterations=45, verbose=False ):
     ---------
     x : ANTsImage
         t1 brain extracted
+
+    labels : ANTsImage
+        cortical parcellation
+
+    label_description : pandas data frame
 
     iterations : integer
         number of iterations ( probably not to be changed except for testing )
@@ -3295,9 +3300,9 @@ def kelly_kapowski_thickness( x, iterations=45, verbose=False ):
             its=iterations, r=0.025, m=1.5, verbose=myverb )
     kkthkmask = ants.threshold_image( kkthk, 0.25, 1e6 )
     kkdf = map_intensity_to_dataframe(
-                  'dkt',
+                  label_description,
                   kkthk,
-                  hier['dkt_parc']['dkt_cortex'] * kkthkmask )
+                  labels * kkthkmask )
     kkdf_wide = antspyt1w.merge_hierarchical_csvs_to_wide_format( {'KK' : kkdf}, col_names = ['Mean'] )
     return {
         'thickness_image' : kkthki,
