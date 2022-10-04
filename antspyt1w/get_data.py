@@ -3289,12 +3289,12 @@ def kelly_kapowski_thickness( x, iterations=45, verbose=False ):
         myverb=1
     else:
         myverb=0
-    mydap = antspyt1w.deep_tissue_segmentation( x )
+    mydap = deep_tissue_segmentation( x )
     kkthk = ants.kelly_kapowski( s=mydap['segmentation_image'],
             g=mydap['probability_images'][2], w=mydap['probability_images'][3],
             its=iterations, r=0.025, m=1.5, verbose=myverb )
     kkthkmask = ants.threshold_image( kkthk, 0.25, 1e6 )
-    kkdf = antspyt1w.map_intensity_to_dataframe(
+    kkdf = map_intensity_to_dataframe(
                   'dkt',
                   kkthk,
                   hier['dkt_parc']['dkt_cortex'] * kkthkmask )
