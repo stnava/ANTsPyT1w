@@ -1089,7 +1089,9 @@ def deep_hippo(
     hippleftORlabels['Description'] = 'left hippocampus'
     hipprightORlabels  = ants.label_geometry_measures(hippright_bin, avgright)
     hipprightORlabels['Description'] = 'right hippocampus'
-    hippleftORlabels=hippleftORlabels.append( hipprightORlabels )
+    # hippleftORlabels=hippleftORlabels.append( hipprightORlabels )
+    # FIXME possible fix below
+    hippleftORlabels = pd.concat( [hippleftORlabels, hipprightORlabels] , axis=1 )
     hippleftORlabels['Label']=[1,2]
     labels = {
         'segmentation':hipp_bin,
