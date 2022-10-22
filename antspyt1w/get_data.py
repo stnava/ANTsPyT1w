@@ -299,15 +299,16 @@ def loop_outlierness( random_projections, reference_projections,
         nBasisUse = random_projections.shape[1]
 
     refbases = reference_projections.iloc[:,:nBasisUse]
-    refbasesmean = refbases.mean()
-    refbasessd = refbases.std()
+    myax=0
+    refbasesmean = refbases.mean(axis=myax)
+    refbasessd = refbases.std(axis=myax)
     normalized_df = refbases
     if standardize:
         normalized_df = (normalized_df-refbasesmean)/refbasessd
     temp = random_projections.iloc[:,:nBasisUse]
     if standardize:
         temp = (temp-refbasesmean)/refbasessd
-    normalized_df = normalized_df.append( temp ).dropna(axis=0)
+    normalized_df = pd.concat( [normalized_df, temp], axis=0 ).dropna(axis=0)
     if cluster_labels is None:
         m = loop.LocalOutlierProbability(normalized_df,
             extent=extent,
@@ -400,7 +401,7 @@ def random_basis_projection( x, template,
         n_neighbors=refbases.shape[0] )[ refbases.shape[0] ]
     mhdist = 0.0
     if nBasis == 10:
-        temp = refbases.append( df.iloc[:,:nBasis] )
+        temp = pd.concat( [ refbases, df.iloc[:,:nBasis] ], axis=0 )
         mhdist = mahalanobis_distance( temp )['distance'][ refbases.shape[0] ]
     df['mhdist'] = mhdist
     df['templateL1']=mydelta.abs().mean()
