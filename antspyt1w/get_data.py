@@ -3117,9 +3117,16 @@ def super_resolution_segmentation_per_label(
                     print("calling prediction function")
                     print( myarr.shape )
                 pred = sr_model.predict( myarr )
+                predshape = pred.shape
+                predshapelen = len( pred.shape )
+                if predshape[ predshapelen - 1] == 2:
+                    pred = tf.split( pred, 2, axis=4 )
                 if verbose:
                     print("predict done")
                 imgsr = ants.from_numpy( tf.squeeze( pred[0] ).numpy())
+                if verbose:
+                    print( imgc )
+                    print( imgsr )
                 imgsr = ants.copy_image_info( imgc, imgsr )
                 newspc = ( np.asarray( ants.get_spacing( imgsr ) ) * 0.5 ).tolist()
                 ants.set_spacing( imgsr,  newspc )
