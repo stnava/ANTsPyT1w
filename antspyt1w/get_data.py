@@ -3117,8 +3117,8 @@ def super_resolution_segmentation_per_label(
                     print("calling prediction function")
                     print( myarr.shape )
                 pred = sr_model.predict( myarr )
-                predshape = pred.shape
-                predshapelen = len( pred.shape )
+                predshape = np.asarray(pred).shape
+                predshapelen = len( predshape )
                 if predshape[ predshapelen - 1] == 2:
                     pred = tf.split( pred, 2, axis=4 )
                 if verbose:
