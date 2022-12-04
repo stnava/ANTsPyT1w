@@ -2994,7 +2994,7 @@ def super_resolution_segmentation_per_label(
     probability_labels=None, # the segmentation ids for the probability image,
     max_lab_plus_one=True,
     target_range=[1,0],
-    match_intensity = False,
+    match_intensity = True,
     verbose = False,
 ):
     """
