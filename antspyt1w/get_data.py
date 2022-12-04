@@ -2993,7 +2993,7 @@ def super_resolution_segmentation_per_label(
     probability_images=None, # probability list
     probability_labels=None, # the segmentation ids for the probability image,
     max_lab_plus_one=True,
-    target_range=[0,1],
+    target_range=[1,0],
     match_intensity = False,
     verbose = False,
 ):
@@ -3030,7 +3030,7 @@ def super_resolution_segmentation_per_label(
     max_lab_plus_one : boolean
         add background label
 
-    target_range : lower and upper limit of intensity expected by network [0,1] if trained by siq
+    target_range : lower and upper limit of intensity expected by network [1,0] if trained by siq
     
     match_intensity : boolean
 
@@ -3108,7 +3108,8 @@ def super_resolution_segmentation_per_label(
             imgch = ants.crop_image( binseg, binsegdil )
             if probability_images is not None:
                 imgch = ants.crop_image( probimg, binsegdil )
-            imgch = ants.iMath( imgch, "Normalize" ) * target_range[0] - target_range[1] # for SR
+#            imgch = ants.iMath( imgch, "Normalize" ) * target_range[0] - target_range[1] # for SR
+            imgch = imgch * target_range[0] - target_range[1] # for SR
             if type( sr_model ) == type(""): # this is just for testing
                 binsegup = ants.resample_image_to_target( binseg, imgup, interp_type='linear' )
                 problist.append( binsegup )
@@ -3206,7 +3207,7 @@ def super_resolution_segmentation_with_probabilities(
     img,
     initial_probabilities,
     sr_model,
-    target_range=[0,1],
+    target_range=[1,0],
     verbose = False
 ):
     """
@@ -3226,7 +3227,7 @@ def super_resolution_segmentation_with_probabilities(
 
     sr_model : the super resolution model - should have 2 channel input
 
-    target_range : lower and upper limit of intensity expected by network [0,1] if trained by siq
+    target_range : lower and upper limit of intensity expected by network [1,0] if trained by siq
 
     verbose : boolean
 
