@@ -2994,6 +2994,7 @@ def super_resolution_segmentation_per_label(
     probability_labels=None, # the segmentation ids for the probability image,
     max_lab_plus_one=True,
     target_range=[0,1],
+    match_intensity = False,
     verbose = False,
 ):
     """
@@ -3031,6 +3032,8 @@ def super_resolution_segmentation_per_label(
 
     target_range : lower and upper limit of intensity expected by network [0,1] if trained by siq
     
+    match_intensity : boolean
+
     verbose : boolean
         whether to show status updates
 
@@ -3137,9 +3140,10 @@ def super_resolution_segmentation_per_label(
                 imgsrh = ants.copy_image_info( imgc, imgsrh )
                 ants.set_spacing( imgsrh,  newspc )
                 problist.append( imgsrh )
-                if verbose:
-                    print("match intensity")
-                imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgup,imgsr) )
+                if match_intensity:
+                    if verbose:
+                        print("match intensity")
+                    imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgup,imgsr) )
                 contribtoavg = ants.resample_image_to_target( imgsr*0+1, imgup, interp_type='nearestNeighbor' )
                 weightedavg = weightedavg + contribtoavg
                 imgsrfull = imgsrfull + ants.resample_image_to_target( imgsr, imgup, interp_type='nearestNeighbor' )
