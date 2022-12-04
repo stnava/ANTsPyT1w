@@ -3121,6 +3121,7 @@ def super_resolution_segmentation_per_label(
                 myarr = myarr.reshape( newshape )
                 if verbose:
                     print("calling prediction function")
+                    print("arr range " + str(myarr.max() ) + " " + str(myarr.min() ) )
                     print( myarr.shape )
                 pred = sr_model.predict( myarr )
                 predshape = np.asarray(pred).shape
