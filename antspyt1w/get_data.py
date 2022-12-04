@@ -2993,6 +2993,7 @@ def super_resolution_segmentation_per_label(
     probability_images=None, # probability list
     probability_labels=None, # the segmentation ids for the probability image,
     max_lab_plus_one=True,
+    target_range=[0,1],
     verbose = False,
 ):
     """
@@ -3028,6 +3029,8 @@ def super_resolution_segmentation_per_label(
     max_lab_plus_one : boolean
         add background label
 
+    target_range : lower and upper limit of intensity expected by network [0,1] if trained by siq
+    
     verbose : boolean
         whether to show status updates
 
@@ -3098,11 +3101,11 @@ def super_resolution_segmentation_per_label(
             binsegdil = ants.iMath( ants.threshold_image( segmentationUse, locallab, locallab ), "MD", dilation_amount )
             binsegdil2input = ants.resample_image_to_target( binsegdil, imgIn, interp_type='nearestNeighbor'  )
             imgc = ants.crop_image( ants.iMath(imgIn,"Normalize"), binsegdil2input )
-            imgc = imgc * 255 - 127.5 # for SR
+            imgc = imgc * target_range[0] - target_range[1] # for SR
             imgch = ants.crop_image( binseg, binsegdil )
             if probability_images is not None:
                 imgch = ants.crop_image( probimg, binsegdil )
-            imgch = ants.iMath( imgch, "Normalize" ) * 255 - 127.5 # for SR
+            imgch = ants.iMath( imgch, "Normalize" ) * target_range[0] - target_range[1] # for SR
             if type( sr_model ) == type(""): # this is just for testing
                 binsegup = ants.resample_image_to_target( binseg, imgup, interp_type='linear' )
                 problist.append( binsegup )
@@ -3198,6 +3201,7 @@ def super_resolution_segmentation_with_probabilities(
     img,
     initial_probabilities,
     sr_model,
+    target_range=[0,1],
     verbose = False
 ):
     """
@@ -3216,6 +3220,10 @@ def super_resolution_segmentation_with_probabilities(
     initial_probabilities: original resolution probability images
 
     sr_model : the super resolution model - should have 2 channel input
+
+    target_range : lower and upper limit of intensity expected by network [0,1] if trained by siq
+
+    verbose : boolean
 
     Returns
     -------
@@ -3239,8 +3247,8 @@ def super_resolution_segmentation_with_probabilities(
             if verbose:
                 print(k)
                 print(imgc)
-            imgcrescale = ants.iMath( imgc, "Normalize" ) * 255 - 127.5 # for SR
-            imgchrescale = imgch * 255.0 - 127.5
+            imgcrescale = ants.iMath( imgc, "Normalize" ) * target_range[0] - target_range[1] # for SR
+            imgchrescale = imgch * target_range[0] - target_range[1]
             myarr = np.stack( [ imgcrescale.numpy(), imgchrescale.numpy() ],axis=3 )
             newshape = np.concatenate( [ [1],np.asarray( myarr.shape )] )
             myarr = myarr.reshape( newshape )
