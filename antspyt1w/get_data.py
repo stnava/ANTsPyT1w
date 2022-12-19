@@ -1118,7 +1118,7 @@ def dap( x ):
     )
     return(  dappertox )
 
-def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
+def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False, target_range=[1,0] ):
     """
     Apply SR to a label image and the associated intensity.
 
@@ -1131,6 +1131,8 @@ def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
     return_intensity : boolean if True will return both intensity and labels,
         otherwise only the upsampled labels are returned.
 
+    target_range : eg [1,0] or [127.5,-127.5] are most likely
+
     """
     ulabs = np.unique( label_img.numpy() )
     ulabs.sort()
@@ -1142,7 +1144,8 @@ def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
                         label_img,
                         [2,2,2],
                         sr_model,
-                        ulabs,
+                        segmentation_numbers=ulabs,
+                        target_range=target_range,
                         max_lab_plus_one=True  )
     else:
         return super_resolution_segmentation_per_label(
@@ -1150,7 +1153,8 @@ def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False ):
                     label_img,
                     [2,2,2],
                     sr_model,
-                    ulabs,
+                    segmentation_numbers=ulabs,
+                    target_range=target_range,
                     max_lab_plus_one=True  )['super_resolution_segmentation']
 
 def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose=False ):
@@ -3031,7 +3035,7 @@ def super_resolution_segmentation_per_label(
         add background label
 
     target_range : lower and upper limit of intensity expected by network [1,0] if trained by siq
-    
+
     match_intensity : boolean
 
     verbose : boolean
