@@ -2998,7 +2998,7 @@ def super_resolution_segmentation_per_label(
     probability_labels=None, # the segmentation ids for the probability image,
     max_lab_plus_one=True,
     target_range=[1,0],
-    match_intensity = True,
+    poly_order = 'hist',
     verbose = False,
 ):
     """
@@ -3036,7 +3036,7 @@ def super_resolution_segmentation_per_label(
 
     target_range : lower and upper limit of intensity expected by network [1,0] if trained by siq
 
-    match_intensity : boolean
+    poly_order : integer or 'hist' or None
 
     verbose : boolean
         whether to show status updates
@@ -3109,11 +3109,11 @@ def super_resolution_segmentation_per_label(
             binsegdil2input = ants.resample_image_to_target( binsegdil, imgIn, interp_type='nearestNeighbor'  )
             imgc = ants.crop_image( ants.iMath(imgIn,"Normalize"), binsegdil2input )
             imgc = imgc * target_range[0] - target_range[1] # for SR
-            imgch = ants.crop_image( binseg, binsegdil )
+            imgchCore = ants.crop_image( binseg, binsegdil )
             if probability_images is not None:
-                imgch = ants.crop_image( probimg, binsegdil )
-#            imgch = ants.iMath( imgch, "Normalize" ) * target_range[0] - target_range[1] # for SR
-            imgch = imgch * target_range[0] - target_range[1] # for SR
+                imgchCore = ants.crop_image( probimg, binsegdil )
+            imgch = ants.iMath( imgchCore, "Normalize" ) * target_range[0] - target_range[1] # for SR
+#            imgch = imgchCore * target_range[0] - target_range[1] # for SR
             if type( sr_model ) == type(""): # this is just for testing
                 binsegup = ants.resample_image_to_target( binseg, imgup, interp_type='linear' )
                 problist.append( binsegup )
@@ -3145,11 +3145,15 @@ def super_resolution_segmentation_per_label(
                 imgsrh = ants.from_numpy( tf.squeeze( pred[1] ).numpy())
                 imgsrh = ants.copy_image_info( imgc, imgsrh )
                 ants.set_spacing( imgsrh,  newspc )
+#                imgsrh = ants.histogram_match_image( imgsrh, imgchCore )
                 problist.append( imgsrh )
-                if match_intensity:
+                if poly_order is not None:
                     if verbose:
                         print("match intensity")
-                    imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgup,imgsr) )
+                    if poly_order == 'hist':
+                        imgsr = ants.histogram_match_image( imgsr, imgc )
+                    else:
+                        imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgup,imgsr), poly_order=poly_order )
                 contribtoavg = ants.resample_image_to_target( imgsr*0+1, imgup, interp_type='nearestNeighbor' )
                 weightedavg = weightedavg + contribtoavg
                 imgsrfull = imgsrfull + ants.resample_image_to_target( imgsr, imgup, interp_type='nearestNeighbor' )
