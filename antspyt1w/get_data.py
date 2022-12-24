@@ -3111,8 +3111,8 @@ def super_resolution_segmentation_per_label(
             imgchCore = ants.crop_image( binseg, binsegdil )
             if probability_images is not None:
                 imgchCore = ants.crop_image( probimg, binsegdil )
-            imgch = ants.iMath( imgchCore, "Normalize" ) * target_range[0] - target_range[1] # for SR
-#            imgch = imgchCore * target_range[0] - target_range[1] # for SR
+#            imgch = ants.iMath( imgchCore, "Normalize" ) * target_range[0] - target_range[1] # for SR
+            imgch = imgchCore * target_range[0] - target_range[1] # for SR
             if type( sr_model ) == type(""): # this is just for testing
                 binsegup = ants.resample_image_to_target( binseg, imgup, interp_type='linear' )
                 problist.append( binsegup )
@@ -3144,15 +3144,18 @@ def super_resolution_segmentation_per_label(
                 imgsrh = ants.from_numpy( tf.squeeze( pred[1] ).numpy())
                 imgsrh = ants.copy_image_info( imgc, imgsrh )
                 ants.set_spacing( imgsrh,  newspc )
-#                imgsrh = ants.histogram_match_image( imgsrh, imgchCore )
-                problist.append( imgsrh )
                 if poly_order is not None:
-                    if verbose:
-                        print("match intensity")
                     if poly_order == 'hist':
+                        if verbose:
+                            print("hist match intensity")
+                        imgsrh = ants.histogram_match_image( imgsrh, imgchCore )
                         imgsr = ants.histogram_match_image( imgsr, imgc )
                     else:
+                        if verbose:
+                            print("poly match intensity")
                         imgsr = antspynet.regression_match_image( imgsr, ants.resample_image_to_target(imgup,imgsr), poly_order=poly_order )
+                        imgsrh = antspynet.regression_match_image( imgsrh, ants.resample_image_to_target(imgchCore,imgsr), poly_order=poly_order )
+                problist.append( imgsrh )
                 contribtoavg = ants.resample_image_to_target( imgsr*0+1, imgup, interp_type='nearestNeighbor' )
                 weightedavg = weightedavg + contribtoavg
                 imgsrfull = imgsrfull + ants.resample_image_to_target( imgsr, imgup, interp_type='nearestNeighbor' )
