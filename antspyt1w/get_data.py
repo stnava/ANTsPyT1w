@@ -3139,7 +3139,6 @@ def super_resolution_segmentation_per_label(
                     print( imgc )
                     print( imgsr )
                 imgsr = ants.copy_image_info( imgc, imgsr )
-                newspc = ( np.asarray( ants.get_spacing( imgsr ) ) * 0.5 ).tolist()
                 ants.set_spacing( imgsr,  newspc )
                 imgsrh = ants.from_numpy( tf.squeeze( pred[1] ).numpy())
                 imgsrh = ants.copy_image_info( imgc, imgsrh )
