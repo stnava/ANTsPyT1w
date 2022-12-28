@@ -3291,7 +3291,8 @@ def super_resolution_segmentation_with_probabilities(
     }
     return labels
 
-def kelly_kapowski_thickness( x, labels, label_description='dkt', iterations=45, verbose=False ):
+def kelly_kapowski_thickness( x, labels,
+    label_description='dkt', iterations=45, max_thickness=6.0, verbose=False ):
     """
     Apply a two-channel super resolution model to an image and probability pair.
 
@@ -3307,6 +3308,8 @@ def kelly_kapowski_thickness( x, labels, label_description='dkt', iterations=45,
 
     iterations : integer
         number of iterations ( probably not to be changed except for testing )
+
+    max_thickness : in mm to consider default is 6.0
 
     verbose : boolean
 
@@ -3331,7 +3334,7 @@ def kelly_kapowski_thickness( x, labels, label_description='dkt', iterations=45,
     kkthk = ants.kelly_kapowski( s=mydap['segmentation_image'],
             g=mydap['probability_images'][2], w=mydap['probability_images'][3],
             its=iterations, r=0.025, m=1.5, verbose=myverb )
-    kkthkmask = ants.threshold_image( kkthk, 0.25, 1e6 )
+    kkthkmask = ants.threshold_image( kkthk, 0.25, max_thickness )
     kkdf = map_intensity_to_dataframe(
                   label_description,
                   kkthk,
