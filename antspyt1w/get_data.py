@@ -220,7 +220,7 @@ def mahalanobis_distance( x ):
 
 def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=False ):
     """
-    Patch-based eigenvalue ratio calculation.
+    Patch-based eigenvalue ratio calculation.  Computes the ratio (percent) of the eigenvalues needed to reach evdepth explained variance.
 
     Arguments
     ---------
@@ -250,7 +250,7 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=F
     rnk=ants.rank_intensity(x,msk,True)
     npatchvox = myproduct( radder )
     ptch = antspynet.extract_image_patches( rnk, tuple(radder), mask_image=msk,
-        max_number_of_patches = nptch, return_as_array=False )
+        max_number_of_patches = nptch, return_as_array=False, randomize=True )
     for k in range(len(ptch)):
         ptch[k] = np.reshape( ptch[k], npatchvox )
     X = np.stack( ptch )
