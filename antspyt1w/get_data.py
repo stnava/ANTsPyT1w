@@ -249,10 +249,12 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=F
         msk = mask.clone()
     rnk=ants.rank_intensity(x,msk,True)
     npatchvox = myproduct( radder )
-    ptch = antspynet.extract_image_patches( rnk, tuple(radder), mask_image=msk,
+    ptch0 = antspynet.extract_image_patches( rnk, tuple(radder), mask_image=msk,
         max_number_of_patches = nptch, return_as_array=False, randomize=True )
-    for k in range(len(ptch)):
-        ptch[k] = np.reshape( ptch[k], npatchvox )
+    ptch = []
+    for k in range(len(ptch0)):
+        if np.prod( ptch0[k].shape ) == npatchvox :
+            ptch.append( np.reshape( ptch0[k], npatchvox ) )
     X = np.stack( ptch )
     if standardize:
         X = X - X.mean(axis=0, keepdims=True)
