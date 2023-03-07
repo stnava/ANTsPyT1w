@@ -268,7 +268,7 @@ def patch_eigenvalue_ratio( x, n, radii, evdepth = 0.9, mask=None, standardize=F
     # print( str(numer) +  " " + str(denom) )
     return numer/denom
 
-def loop_outlierness( random_projections, reference_projections,
+def loop_outlierness( random_projections, reference_projections=None,
     standardize=True, extent=3, n_neighbors=24, cluster_labels=None ):
     """
     Estimate loop outlierness for the input.
@@ -296,6 +296,10 @@ def loop_outlierness( random_projections, reference_projections,
     loop outlierness probability
 
     """
+    use_reference=True
+    if reference_projections is None:
+        use_reference = False
+        reference_projections = random_projections
     nBasisUse = reference_projections.shape[1]
     if random_projections.shape[1] < nBasisUse:
         nBasisUse = random_projections.shape[1]
@@ -307,10 +311,11 @@ def loop_outlierness( random_projections, reference_projections,
     normalized_df = refbases
     if standardize:
         normalized_df = (normalized_df-refbasesmean)/refbasessd
-    temp = random_projections.iloc[:,:nBasisUse]
-    if standardize:
-        temp = (temp-refbasesmean)/refbasessd
-    normalized_df = pd.concat( [normalized_df, temp], axis=0 ).dropna(axis=0)
+    if use_reference:
+        temp = random_projections.iloc[:,:nBasisUse]
+        if standardize:
+            temp = (temp-refbasesmean)/refbasessd
+        normalized_df = pd.concat( [normalized_df, temp], axis=0 ).dropna(axis=0)
     if cluster_labels is None:
         m = loop.LocalOutlierProbability(normalized_df,
             extent=extent,
