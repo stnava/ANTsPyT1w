@@ -6,7 +6,7 @@ __all__ = ['get_data','map_segmentation_to_dataframe','hierarchical',
     'random_basis_projection', 'deep_dkt','deep_hippo','deep_tissue_segmentation',
     'deep_brain_parcellation', 'deep_mtl', 'label_hemispheres','brain_extraction',
     'hemi_reg', 'region_reg', 't1_hypointensity', 'zoom_syn', 'merge_hierarchical_csvs_to_wide_format',
-    'map_intensity_to_dataframe', 'deep_nbm', 'map_cit168', 'deep_cit168']
+    'map_intensity_to_dataframe', 'deep_nbm', 'map_cit168', 'deep_cit168','minimal_sr_preprocessing']
 
 from pathlib import Path
 import os
@@ -3351,3 +3351,29 @@ def kelly_kapowski_thickness( x, labels,
         'thickness_image' : kkthk,
         'thickness_dataframe' : kkdf_wide
     }
+
+
+def minimal_sr_preprocessing( x, imgbxt=None ):
+    """
+    x : input t1 image (raw)
+
+    imgbxt : optional existing brain extraction
+
+    outputs: preprocessedT1, hemisphereLabels
+    """
+    if x.dimension != 3:
+        raise ValueError('hierarchical: input image should be 3-dimensional')
+
+    tfn = get_data('T_template0', target_extension='.nii.gz' )
+    tlrfn = get_data('T_template0_LR', target_extension='.nii.gz' )
+
+    ##### read images and do simple bxt ops
+    templatea = ants.image_read( tfn )
+    templatea = ( templatea * antspynet.brain_extraction( templatea, 't1' ) ).iMath( "Normalize" )
+    templatealr = ants.image_read( tlrfn )
+    if imgbxt is None:
+        imgbxt = brain_extraction( ants.iMath( x, "Normalize" ) )
+    img = preprocess_intensity( ants.iMath( x, "Normalize" ), imgbxt )
+    img = ants.iMath( img, "Normalize" )
+    mylr = label_hemispheres( img, templatea, templatealr )
+    return img, mylr
