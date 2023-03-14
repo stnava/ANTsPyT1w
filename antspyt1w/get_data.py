@@ -3376,4 +3376,4 @@ def minimal_sr_preprocessing( x, imgbxt=None ):
     img = preprocess_intensity( ants.iMath( x, "Normalize" ), imgbxt )
     img = ants.iMath( img, "Normalize" )
     mylr = label_hemispheres( img, templatea, templatealr )
-    return img, mylr
+    return img, mylr * imgbxt
