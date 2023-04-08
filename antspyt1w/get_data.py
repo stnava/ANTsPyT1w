@@ -548,10 +548,10 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         raise ValueError('inspect_raw_t1: input image should be 3-dimensional')
 
     x = ants.iMath( x, "Normalize" )
-    csvfn = output_prefix + "_head.csv"
-    pngfn = output_prefix + "_head.png"
-    csvfnb = output_prefix + "_brain.csv"
-    pngfnb = output_prefix + "_brain.png"
+    csvfn = output_prefix + "head.csv"
+    pngfn = output_prefix + "head.png"
+    csvfnb = output_prefix + "brain.csv"
+    pngfnb = output_prefix + "brain.png"
 
     # reference bases
     rbh = pd.read_csv( get_data( "refbasis_head", target_extension=".csv" ) )
