@@ -2622,11 +2622,15 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     snseg = snseg * ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
     snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
 
+    if verbose:
+        print( "brainstem and cerebellar segmentation" )
     # midbrain/brainstem
     brainstemseg = ants.apply_transforms( img, cit168labStem,
                 cit168reg['invtransforms'], interpolator = 'genericLabel' )
     brainstemseg = brainstemseg * braintissuemask
     brainstem_desc = map_segmentation_to_dataframe( 'CIT168_T1w_700um_pad_adni_brainstem', brainstemseg )
+    brainstem_desc = brainstem_desc.loc[:, ~brainstem_desc.columns.str.contains('^Side')]
+
 
     # cerebellum
     cereb = antspynet.cerebellum_morphology( ants.iMath( x, "Normalize" ), compute_thickness_image=False, verbose=False, do_preprocessing=True )
@@ -2634,6 +2638,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     maskc = ants.threshold_image(cereb['cerebellum_probability_image'], 0.5, 1, 1, 0)
     cereb = antspynet.cerebellum_morphology( ants.iMath( x, "Normalize" ), cerebellum_mask=maskc, compute_thickness_image=False, verbose=False, do_preprocessing=True )
     cereb_desc = map_segmentation_to_dataframe( 'cerebellum', cereb['parcellation_segmentation_image'] ).dropna(axis=0)
+
+    if verbose:
+        print( "antspyt1w.hierarchical complete" )
 
     mydataframes = {
         "rbp": myqc['brain'],
@@ -2876,7 +2883,7 @@ def read_hierarchical( output_prefix ):
 
 
 
-def write_hierarchical( hierarchical_object, output_prefix ):
+def write_hierarchical( hierarchical_object, output_prefix, verbose=False ):
     """
     standardized writing of output for hierarchical function
 
@@ -2887,6 +2894,8 @@ def write_hierarchical( hierarchical_object, output_prefix ):
     output_prefix : string path including directory and file prefix that will
         be applied to all output, both csv and images.
 
+    verbose: boolean
+
     Returns
     -------
     None
@@ -2896,12 +2905,16 @@ def write_hierarchical( hierarchical_object, output_prefix ):
     # write extant dataframes
     for myvar in hierarchical_object['dataframes'].keys():
         if hierarchical_object['dataframes'][myvar] is not None:
+            if verbose:
+                print( myvar )
             hierarchical_object['dataframes'][myvar].dropna(axis=0).to_csv(output_prefix + myvar + ".csv")
 
     myvarlist = hierarchical_object.keys()
     r16img = ants.image_read( ants.get_data( "r16" ))
     for myvar in myvarlist:
         if hierarchical_object[myvar] is not None and type(hierarchical_object[myvar]) == type( r16img ):
+            if verbose:
+                print( output_prefix + myvar )
             ants.image_write( hierarchical_object[myvar], output_prefix + myvar + '.nii.gz' )
 
     myvarlist = [
@@ -2912,6 +2925,8 @@ def write_hierarchical( hierarchical_object, output_prefix ):
         'hemisphere_labels' ]
     for myvar in myvarlist:
         if hierarchical_object['dkt_parc'][myvar] is not None:
+            if verbose:
+                print( output_prefix + myvar )
             ants.image_write( hierarchical_object['dkt_parc'][myvar], output_prefix + myvar + '.nii.gz' )
 
     return
@@ -2919,7 +2934,7 @@ def write_hierarchical( hierarchical_object, output_prefix ):
 
 
 
-def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names = None , identifier=None, identifier_name='u_hier_id' ):
+def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names = None , identifier=None, identifier_name='u_hier_id', verbose=False ):
     """
     standardized merging of output for dataframes produced by hierarchical function.
 
@@ -2940,6 +2955,8 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
         identifier='A'
     wide_df = pd.DataFrame( )
     for myvar in hierarchical_dataframes.keys():
+        if verbose:
+            print( myvar )
         if hierarchical_dataframes[myvar] is not None:
             jdf = hierarchical_dataframes[myvar].dropna(axis=0)
             jdf = jdf.loc[:, ~jdf.columns.str.contains('^Unnamed')]
