@@ -37,7 +37,7 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=45, target_extension='.csv' ):
+def get_data( name=None, force_download=False, version=46, target_extension='.csv' ):
     """
     Get ANTsPyT1w data filename
 
@@ -2553,6 +2553,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     cit168adni = ants.image_read( cit168adni ).iMath("Normalize")
     cit168labT = get_data( "det_atlas_25_pad_LR_adni", target_extension='.nii.gz' )
     cit168labT = ants.image_read( cit168labT )
+    cit168labStem = get_data( "CIT168_T1w_700um_pad_adni_brainstem", target_extension='.nii.gz' )
+    cit168labStem = ants.image_read( cit168labStem )
 
     if verbose:
         print("cit168")
@@ -2620,6 +2622,19 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     snseg = snseg * ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
     snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
 
+    # midbrain/brainstem
+    brainstemseg = ants.apply_transforms( img, cit168labStem,
+                cit168reg['invtransforms'], interpolator = 'genericLabel' )
+    brainstemseg = brainstemseg * braintissuemask
+    brainstem_desc = map_segmentation_to_dataframe( 'CIT168_T1w_700um_pad_adni_brainstem', brainstemseg )
+
+    # cerebellum
+    cereb = antspynet.cerebellum_morphology( ants.iMath( x, "Normalize" ), compute_thickness_image=False, verbose=False, do_preprocessing=True )
+    # refinement with cerebellum estimate (comment out since it's not needed for this image).
+    maskc = ants.threshold_image(cereb['cerebellum_probability_image'], 0.5, 1, 1, 0)
+    cereb = antspynet.cerebellum_morphology( ants.iMath( x, "Normalize" ), cerebellum_mask=maskc, compute_thickness_image=False, verbose=False, do_preprocessing=True )
+    cereb_desc = map_segmentation_to_dataframe( 'cerebellum', cereb['parcellation_segmentation_image'] ).dropna(axis=0)
+
     mydataframes = {
         "rbp": myqc['brain'],
         "hemispheres":hemi,
@@ -2636,6 +2651,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "deep_cit168":deep_cit['description'],
         "snseg":snseg_desc,
         "hippLR":hippLR['description'],
+        "brainstem": brainstem_desc,
+        "cerebellum": cereb_desc
         }
 
     outputs = {
@@ -2657,6 +2674,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "cit168reg":  cit168reg,
         "snseg":snseg,
         "snreg":snreg,
+        "brainstem": brainstemseg,
+        "cerebellum":cereb['parcellation_segmentation_image'],
         "dataframes": mydataframes
     }
 
@@ -2794,6 +2813,8 @@ def read_hierarchical( output_prefix ):
             "deep_cit168":None,
             "snseg":None,
             "hippLR":None,
+            "cerebellum":None,
+            "brainstem":None
             }
 
     dkt_parc = {
@@ -2825,6 +2846,8 @@ def read_hierarchical( output_prefix ):
             "cit168reg":  None,
             "snseg":None,
             "snreg":None,
+            "cerebellum":None,
+            "brainstem":None,
             "dataframes": mydataframes
         }
 
