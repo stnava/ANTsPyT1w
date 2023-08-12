@@ -1307,8 +1307,9 @@ def deep_mtl(t1, sr_model=None, verbose=True):
                                invtransforms=registration['invtransforms'])
     t1_warped = registration['warpedmovout']
 
-    df = antspynet.deep_flash(t1_warped, do_preprocessing=False,
-        use_rank_intensity = False,
+    df = antspynet.deep_flash(t1_warped, 
+        do_preprocessing=False,
+        use_rank_intensity = True,
         verbose=verbose)
 
     if False:
