@@ -95,6 +95,15 @@ which demonstrates/comments on:
 - how to join with a demographic/metadata file
 - visualizing basic outcomes.
 
+## ssl error 
+
+if you get an odd certificate error when calling `force_download`, try:
+
+```python
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+```
+
 ## to publish a release
 
 ```
