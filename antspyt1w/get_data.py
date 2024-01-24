@@ -2579,11 +2579,13 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         print("hippocampus")
 
     ##### specialized labeling for hippocampus
-    ntries = 10
-    if is_test:
-        ntries = 1
-    hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries,
-        tx_type='Affine', sr_model = sr_model )
+    do_hippmapper = False
+    if do_hippmapper:
+        ntries = 10
+        if is_test:
+            ntries = 1
+        hippLR = deep_hippo( img=img, template=templateb, number_of_tries=ntries,
+            tx_type='Affine', sr_model = sr_model )
 
     if verbose:
         print("medial temporal lobe")
@@ -2658,7 +2660,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "cit168":cit168lab_desc,
         "deep_cit168":deep_cit['description'],
         "snseg":snseg_desc,
-        "hippLR":hippLR['description'],
+#        "hippLR":hippLR['description'],
         "brainstem": brainstem_desc,
         "cerebellum": cereb_desc
         }
@@ -2671,7 +2673,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         "left_right": mylr,
         "dkt_parc": myparc,
         "registration":reg,
-        "hippLR":hippLR['segmentation'],
+#        "hippLR":hippLR['segmentation'],
 #        "white_matter_hypointensity":myhypo['wmh_probability_image'],
         "wm_tractsL":wm_tractsL,
         "wm_tractsR":wm_tractsR,
@@ -2820,7 +2822,7 @@ def read_hierarchical( output_prefix ):
             "cit168":None,
             "deep_cit168":None,
             "snseg":None,
-            "hippLR":None,
+#            "hippLR":None,
             "cerebellum":None,
             "brainstem":None
             }
@@ -2843,7 +2845,7 @@ def read_hierarchical( output_prefix ):
             "left_right": None,
             "dkt_parc": dkt_parc,
             "registration":None,
-            "hippLR":None,
+#            "hippLR":None,
     #        "white_matter_hypointensity":None,
             "wm_tractsL":None,
             "wm_tractsR":None,
