@@ -607,7 +607,7 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         myevr = float( rbpb['evratio'].iloc[0] )
         mygrd = float( rbpb['resnetGrade'].iloc[0] )
         myl1 = float( rbpb['templateL1'].iloc[0] )
-        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'])) + " EVR: " + "{:0.4f}".format(myevr) + " TL1: " + "{:0.4f}".format(myl1) + " grade: " + "{:0.4f}".format(mygrd)
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbpb['mhdist'].iloc[0])) + " EVR: " + "{:0.4f}".format(myevr) + " TL1: " + "{:0.4f}".format(myl1) + " grade: " + "{:0.4f}".format(mygrd)
         img = Image.open( pngfnb ).copy()
         plt.figure(dpi=300)
         plt.imshow(img)
