@@ -441,7 +441,7 @@ def resnet_grader( x, weights_filename = None ):
 
     mdl = antspynet.create_resnet_model_3d( [None,None,None,1],
         lowest_resolution = 32,
-        number_of_classification_labels = 4,
+        number_of_outputs = 4,
         cardinality = 1,
         squeeze_and_excite = False )
     mdl.load_weights( weights_filename )
@@ -1697,7 +1697,7 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
     lesresam = ants.apply_transforms( x, limg, afftx, whichtoinvert=[False] )
     # lesresam = lesresam * cerebrum
     rnmdl = antspynet.create_resnet_model_3d( inshape,
-      number_of_classification_labels = 1,
+      number_of_outputs = 1,
       layers = (1,2,3),
       residual_block_schedule = (3,4,6,3), squeeze_and_excite = True,
       lowest_resolution = 32, cardinality = 1, mode = "regression" )
@@ -1837,7 +1837,7 @@ def deep_nbm( t1,
 
 
     nLabels = len( group_labels )
-    number_of_classification_labels = len(group_labels)
+    number_of_outputs = len(group_labels)
     number_of_channels = 1
     ################################################
     unet0 = antspynet.create_unet_model_3d(
@@ -1856,7 +1856,7 @@ def deep_nbm( t1,
 
     unet1 = antspynet.create_unet_model_3d(
         [None,None,None,2],
-        number_of_outputs=number_of_classification_labels,
+        number_of_outputs=number_of_outputs,
         mode="classification",
         number_of_filters=(32, 64, 96, 128, 256),
         convolution_kernel_size=(3, 3, 3),
@@ -1906,7 +1906,7 @@ def deep_nbm( t1,
     snpred1_image = map_back( snpred1_image, t1, imgprepro, 'linear', deform )
     bint = ants.threshold_image( snpred1_image, 0.5, 1.0 )
     probability_images = []
-    for jj in range(number_of_classification_labels-1):
+    for jj in range(number_of_outputs-1):
                 temp = ants.from_numpy( segpred[0,:,:,:,jj+1] )
                 temp = ants.copy_image_info( physspaceBF, temp )
                 temp = map_back( temp, t1, imgprepro, 'linear', deform )
@@ -2261,7 +2261,7 @@ def deep_cit168( t1, binary_mask = None,
             group_labels = [0,1,2,5,6,17,18,21,22]
             newfn=get_data( "deepCIT168", target_extension=".h5" )
 
-        number_of_classification_labels = len(group_labels)
+        number_of_outputs = len(group_labels)
         number_of_channels = len(group_labels)
 
         unet0 = antspynet.create_unet_model_3d(
@@ -2280,7 +2280,7 @@ def deep_cit168( t1, binary_mask = None,
 
         unet1 = antspynet.create_unet_model_3d(
             [None,None,None,2],
-            number_of_outputs=number_of_classification_labels,
+            number_of_outputs=number_of_outputs,
             mode="classification",
             number_of_filters=(32, 64, 96, 128, 256),
             convolution_kernel_size=(3, 3, 3),
