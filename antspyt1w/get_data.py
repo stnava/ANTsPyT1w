@@ -601,7 +601,14 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
             type_of_transform='Rigid',
             refbases=rbb )
         rbpb['evratio'] = patch_eigenvalue_ratio( t1, 512, [20,20,20], evdepth = 0.9 )
-        rbpb['resnetGrade'] = resnet_grader( t1 ).gradeNum[0]
+        grade0 = resnet_grader( t1 ).gradeNum[0]
+        msk=ants.threshold_image(t1,0.01,1.0)
+        t1tx=ants.n4_bias_field_correction( t1, mask=msk )
+        t1tx=ants.iMath(t1tx,'TruncateIntensity',0.001,0.98)
+        grade1 = resnet_grader( t1tx ).gradeNum[0]
+        if grade1 > grade0:
+            grade0 = grade1
+        rbpb['resnetGrade'] = grade0
         rbpb.to_csv( csvfnb )
         looper = float(rbpb['loop_outlier_probability'].iloc[0])
         myevr = float( rbpb['evratio'].iloc[0] )
