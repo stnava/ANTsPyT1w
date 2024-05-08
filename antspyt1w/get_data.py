@@ -571,8 +571,8 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
             refbases=rbh )
         rbp.to_csv( csvfn )
         # fix up the figure
-        looper=float(rbp['loop_outlier_probability'])
-        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbp['mhdist']))
+        looper=float(rbp['loop_outlier_probability'].iloc[0])
+        ttl="LOOP: " + "{:0.4f}".format(looper) + " MD: " + "{:0.4f}".format(float(rbp['mhdist'].iloc[0]))
         img = Image.open( pngfn ).copy()
         plt.figure(dpi=300)
         plt.imshow(img)
