@@ -21,7 +21,8 @@ jobs:
       # Specify the version you desire here
       # See:https://circleci.com/developer/images/image/cimg/python
       - image: cimg/python:3.12
-    timeout: 60  # Timeout in minutes
+    parallelism: 4
+    resource_class: large
     # Add steps to the job
     # See: https://circleci.com/docs/jobs-steps/#steps-overview & https://circleci.com/docs/configuration-reference/#steps
     steps:
