@@ -35,6 +35,7 @@ jobs:
           name: build
           command: python3 -m pip install .
       - run:
+          no_output_timeout: 60m
           name: Run tests
           command: pytest
 
