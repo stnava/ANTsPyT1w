@@ -1,6 +1,6 @@
 # ANTsPyT1w
 
-[![CircleCI](https://circleci.com/gh/stnava/ANTsPyT1w/tree/master.svg?style=svg)](https://circleci.com/gh/stnava/ANTsPyT1w/tree/master)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/stnava/ANTsPyT1w/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/stnava/ANTsPyT1w/tree/main)
 
 ## reference processing for t1-weighted neuroimages (human)
 
