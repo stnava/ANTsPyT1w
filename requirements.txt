@@ -10,7 +10,7 @@ absl-py==2.1.0
     #   tensorboard
     #   tensorflow
     #   tensorflow-probability
-antspynet==0.2.6
+antspynet==0.2.8
     # via antspyt1w (pyproject.toml)
 antspyx==0.4.2
     # via
