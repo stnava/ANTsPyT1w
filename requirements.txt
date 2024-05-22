@@ -221,10 +221,16 @@ tensorflow>=2.16.1
     # via
     #   antspynet
     #   antspyt1w (pyproject.toml)
-tensorflow-probability>=0.24.0
-    # via antspynet
+    #   tensorflow-probability
+    #   tf-keras
+tensorflow-probability[tf]>=0.24.0
+    # via
+    #   antspynet
+    #   antspyt1w (pyproject.toml)
 termcolor>=2.4.0
     # via tensorflow
+tf-keras>=2.16.0
+    # via tensorflow-probability
 threadpoolctl>=3.5.0
     # via scikit-learn
 tifffile>=2024.5.10

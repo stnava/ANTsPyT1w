@@ -20,6 +20,7 @@ dependencies = [
     "antspyx>=0.2.7",
     "antspynet>=0.0",
     "tensorflow>=2.2",
+    "tensorflow-probability[tf]",
     "pathlib",
     "PyNomaly>=0.3.3",
     "pytest>=8.0.1",
