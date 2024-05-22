@@ -39,6 +39,7 @@ jobs:
           no_output_timeout: 30m
           name: Run tests
           command: pytest
+          timeout: 60m
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
