@@ -32,3 +32,6 @@ def run_test():
             assert True
         except AssertionError:
             print("Failure")
+
+
+run_test()
