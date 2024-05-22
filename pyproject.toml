@@ -22,6 +22,7 @@ dependencies = [
     "tensorflow>=2.2",
     "pathlib",
     "PyNomaly>=0.3.3",
+    "pytest>=8.0.1",
     "scipy",
     "pillow",
     "matplotlib"
