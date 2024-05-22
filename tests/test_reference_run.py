@@ -14,6 +14,8 @@ import pandas as pd
 if os.getenv('CI') == 'true' and os.getenv('CIRCLECI') == 'true':
     def test_simple():
         assert os.getenv('CI') == 'true' and os.getenv('CIRCLECI') == 'true'
+    def test_download():
+        assert antspyt1w.get_data() == None
 else:
     def test_simple():
         assert os.getenv('CI') != 'true' and os.getenv('CIRCLECI') != 'true'
