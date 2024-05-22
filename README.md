@@ -106,9 +106,12 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 ## to publish a release
 
+before doing this - make sure you have a recent run of `pip-compile pyproject.toml`
+
 ```
-rm -r -f build/ antspymm.egg-info/ dist/
-python3 setup.py sdist bdist_wheel
-twine upload --repository antspymm dist/*
+rm -r -f build/ antspyt1w.egg-info/ dist/
+python3 -m  build .
+python3 -m pip install --upgrade twine
+python3 -m twine upload --repository antspyt1w dist/*
 ```
 
