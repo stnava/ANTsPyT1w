@@ -33,10 +33,9 @@ jobs:
           # pip-dependency-file: test-requirements.txt  # if you have a different name for your requirements file, maybe one that combines your runtime and test requirements.
       - run:
           name: build
-          # This assumes pytest is installed via the install-package step above
           command: python3 -m pip install
+      - run:
           name: Run tests
-          # This assumes pytest is installed via the install-package step above
           command: pytest
 
 # Orchestrate jobs using workflows
