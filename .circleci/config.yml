@@ -12,29 +12,8 @@ steps: &steps
         command: python3 -m pip install --user pandas scipy antspyx antspynet tensorflow
     - run:
         name: Build package
-        command: python3 setup.py install
+        command: python3 -m pip install .
     - run:
         name: Check package
         command: python3 tests/test_reference_run.py
 
-jobs:
-  release:
-    docker:
-      - image: stnava/antsr:latest
-    <<: *steps
-  oldrel:
-    docker:
-      - image: stnava/antsr:latest
-    <<: *steps
-  devel:
-    docker:
-      - image: stnava/antsr:latest
-    <<: *steps
-
-workflows:
-  version: 2
-  all:
-    jobs:
-      - release
-#      - oldrel
-#      - devel

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "antspyt1w"
+version = "0.9.3"
+description = "T1w human neuroimage processing with antspyx"
+readme = "README.md"
+requires-python = ">=3.6"
+license = { text = "Apache 2.0" }
+authors = [
+    { name = "Avants, Gosselin, Tustison", email = "stnava@gmail.com" }
+]
+
+dependencies = []
+
+[project.urls]
+homepage = "https://github.com/stnava/ANTsPyT1w"
+
+[tool.setuptools.packages]
+find = { include = ["antspyt1w"] }
