@@ -2303,9 +2303,21 @@ def deep_cit168( t1, binary_mask = None,
             weight_decay=0,
             additional_options = "nnUnetActivationStyle")
 
-        temp = tf.split( unet0.inputs[0], 9, axis=4 )
+#        temp = tf.split( unet0.inputs[0], 9, axis=4 )
+        import tensorflow as tf
+        from tensorflow.keras.layers import Layer
+        class mySplit(Layer):
+            def call(self, x):
+                return tf.split(x, 9, axis=4 )
+        temp = mySplit()( unet0.inputs[0] )
+
         temp[1] = unet0.outputs[0]
-        newmult = tf.concat( temp[0:2], axis=4 )
+
+        class myConcat(Layer):
+            def call(self, x):
+                return tf.concat(x, axis=4 )
+#        newmult = tf.concat( temp[0:2], axis=4 )
+        newmult = myConcat()( temp[0:2] )
         unetonnet = unet1( newmult )
         unet_model = tf.keras.models.Model(
                 unet0.inputs,
