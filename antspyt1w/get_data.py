@@ -1873,7 +1873,14 @@ def deep_nbm( t1,
         additional_options = "nnUnetActivationStyle")
 
     # concat output to input and pass to 2nd net
-    nextin = tf.concat(  [ unet0.inputs[0], unet0.outputs[0] ], axis=4 )
+    # nextin = tf.concat(  [ unet0.inputs[0], unet0.outputs[0] ], axis=4 )
+    import tensorflow as tf
+    from tensorflow.keras.layers import Layer
+    class myConcat(Layer):
+        def call(self, x):
+            return tf.concat(x, axis=4 )
+    nextin = myConcat()( [ unet0.inputs[0], unet0.outputs[0] ] )
+
     unetonnet = unet1( nextin )
     unet_model = tf.keras.models.Model(
             unet0.inputs,
