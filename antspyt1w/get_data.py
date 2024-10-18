@@ -875,46 +875,13 @@ def deep_tissue_segmentation( x, template=None, registration_map=None,
     sr_model: optional (FIXME)
 
     """
-    if template is None:
-        bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
-        template = antspynet.brain_extraction( bbt, "t1" ) * bbt
 
-    bbtr = ants.rank_intensity( template )
-    if registration_map is None:
-        registration_map = ants.registration(
-            bbtr,
-            ants.rank_intensity(x),
-            "antsRegistrationSyNQuickRepro[a]",
-            random_seed=1 )
-
-    mywarped = ants.apply_transforms( template, x,
-        registration_map['fwdtransforms'] )
-
-    dapper = antspynet.deep_atropos( mywarped,
-        do_preprocessing=False, use_spatial_priors=1 )
+    dapper = antspynet.deep_atropos( [x,None,None],
+        do_preprocessing=True, use_spatial_priors=1 )
 
     myk='segmentation_image'
     # the mysterious line below corrects for over-segmentation of CSF
-    dapper[myk] = dapper[myk] * ants.threshold_image( mywarped, 1.0e-6, math.inf )
-    dapper[myk] = ants.apply_transforms(
-            x,
-            dapper[myk],
-            registration_map['fwdtransforms'],
-            whichtoinvert=[True],
-            interpolator='genericLabel',
-        )
-
-    myk='probability_images'
-    myn = len( dapper[myk] )
-    for myp in range( myn ):
-        dapper[myk][myp] = ants.apply_transforms(
-            x,
-            dapper[myk][myp],
-            registration_map['fwdtransforms'],
-            whichtoinvert=[True],
-            interpolator='linear',
-        )
-
+    dapper[myk] = dapper[myk] * ants.threshold_image( x, 1.0e-6, math.inf )
     if atropos_prior is not None:
         msk = ants.threshold_image( dapper['segmentation_image'], 2, 3 ).iMath("GetLargestComponent",50)
         msk = ants.morphology( msk, "close", 2 )
@@ -936,7 +903,7 @@ def deep_brain_parcellation(
     img6seg = None,
     do_cortical_propagation=False,
     atropos_prior=None,
-    verbose=False,
+    verbose=True,
 ):
     """
     modified slightly more efficient deep dkt that also returns atropos output
@@ -984,34 +951,40 @@ def deep_brain_parcellation(
     rigi = ants.apply_transforms( template, target_image, rig['fwdtransforms'])
 
     if verbose:
-        print("Begin DKT")
-
-    dkt = antspynet.desikan_killiany_tourville_labeling(
-        rigi,
-        do_preprocessing=False,
-        return_probability_images=False,
-        do_lobar_parcellation = True
-    )
-
-    for myk in dkt.keys():
-        dkt[myk] = ants.apply_transforms(
-            target_image,
-            dkt[myk],
-            rig['fwdtransforms'],
-            whichtoinvert=[True],
-            interpolator='genericLabel',
-        )
-
-    if verbose:
         print("Begin Atropos tissue segmentation")
 
     if img6seg is None:
+        if verbose:
+            print( "do deep_tissue_segmentation")
         mydap = deep_tissue_segmentation( target_image, atropos_prior=atropos_prior  )
     else:
+        if verbose:
+            print( "use existing deep_tissue_segmentation")
         mydap = { 'segmentation_image': img6seg, 'probability_images': None }
 
     if verbose:
         print("End Atropos tissue segmentation")
+
+    if verbose:
+        print("Begin DKT")
+
+    dktprepro = False
+    dkt = antspynet.desikan_killiany_tourville_labeling(
+        target_image,
+        do_preprocessing=dktprepro,
+        return_probability_images=False,
+        do_lobar_parcellation = True
+    )
+
+    if dktprepro:
+        for myk in dkt.keys():
+            dkt[myk] = ants.apply_transforms(
+                target_image,
+                dkt[myk],
+                rig['fwdtransforms'],
+                whichtoinvert=[True],
+                interpolator='genericLabel',
+            )
 
     myhemiL = ants.threshold_image( dkt['lobar_parcellation'], 1, 6 )
     myhemiR = ants.threshold_image( dkt['lobar_parcellation'], 7, 12 )
@@ -1122,7 +1095,7 @@ def dap( x ):
     bbt = antspynet.brain_extraction( bbt, "t1" ) * bbt
     qaff=ants.registration( bbt, ants.rank_intensity(x), "AffineFast", aff_metric='GC', random_seed=1 )
     qaff['warpedmovout'] = ants.apply_transforms( bbt, x, qaff['fwdtransforms'] )
-    dapper = antspynet.deep_atropos( qaff['warpedmovout'], do_preprocessing=False )
+    dapper = antspynet.deep_atropos( [qaff['warpedmovout'],None,None],  do_preprocessing=False )
     dappertox = ants.apply_transforms(
       x,
       dapper['segmentation_image'],
@@ -2516,7 +2489,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     myparc = deep_brain_parcellation( img, templateb,
         img6seg = img6seg,
         atropos_prior = atropos_prior,
-        do_cortical_propagation = not is_test, verbose=False )
+        do_cortical_propagation = not is_test, verbose=verbose )
 
     ##### accumulate data into data frames
     hemi = map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
