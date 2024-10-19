@@ -2519,13 +2519,34 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     if verbose:
         print("registration")
 
+
+    if is_test:
+        mydataframes = {
+                "rbp": myqc['brain'],
+                "tissues":tissue,
+                "dktlobes":dktl,
+                "dktregions":dktp,
+                "dktcortex":dktc,
+                }
+
+        outputs = {
+                "brain_n4_dnz": img,
+                "brain_extraction": imgbxt,
+                "left_right": mylr,
+                "dkt_parc": myparc,
+                "dataframes": mydataframes
+            }
+
+        return outputs
+
+
     ##### traditional deformable registration as a high-resolution complement to above
     wm_tractsL = None
     wm_tractsR = None
     wmtdfL = None
     wmtdfR = None
     reg = None
-    if labels_to_register is not None:
+    if labels_to_register is not None and not is_test:
         reg = hemi_reg(
             input_image = img,
             input_image_tissue_segmentation = myparc['tissue_segmentation'],
@@ -2559,7 +2580,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     if verbose:
         print("cit168")
 
-    cit168reg = region_reg(
+    if not is_test:
+        cit168reg = region_reg(
             input_image = img,
             input_image_tissue_segmentation=myparc['tissue_segmentation'],
             input_image_region_segmentation=imgbxt,
@@ -2570,9 +2592,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
             labels_to_register = [1,2,3,4,5,6],
             total_sigma=0.1,
             is_test=not cit168 )['synL']
-    cit168lab = ants.apply_transforms( img, cit168labT,
-                cit168reg['invtransforms'], interpolator = 'genericLabel' )
-    cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(axis=0)
+        cit168lab = ants.apply_transforms( img, cit168labT,
+                    cit168reg['invtransforms'], interpolator = 'genericLabel' )
+        cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(axis=0)
 
     if verbose:
         print("hippocampus")
@@ -2611,18 +2633,22 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         print( "SN-specific segmentation" )
 #  input_image_region_segmentation, input_template, input_template_region_segmentation, output_prefix, padding=10, labels_to_register=[2, 3, 4, 5], total_sigma=0.5, is_test=False)
 
-    tbinseg = ants.mask_image( cit168labT, cit168labT, [7,9,23,25,33,34], binarize=True)
-    tbinseg = ants.morphology( tbinseg, "dilate", 14 )
-    ibinseg = ants.apply_transforms( img, tbinseg, cit168reg['invtransforms'],
-        interpolator='genericLabel')
-    snreg = region_reg( img, myparc['tissue_segmentation'], ibinseg,
-        cit168adni, tbinseg, output_prefix=output_prefix + "_SNREG",
-        padding = 4, is_test=False )['synL']
-    tbinseg = ants.mask_image( cit168labT, cit168labT, [7,9,23,25,33,34], binarize=False)
-    snseg = ants.apply_transforms( img, tbinseg,
-        snreg['invtransforms'], interpolator = 'genericLabel' )
-    snseg = snseg * ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
-    snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
+    if not is_test:
+        tbinseg = ants.mask_image( cit168labT, cit168labT, [7,9,23,25,33,34], binarize=True)
+        tbinseg = ants.morphology( tbinseg, "dilate", 14 )
+        ibinseg = ants.apply_transforms( img, tbinseg, cit168reg['invtransforms'],
+            interpolator='genericLabel')
+        snreg = region_reg( img, myparc['tissue_segmentation'], ibinseg,
+            cit168adni, tbinseg, output_prefix=output_prefix + "_SNREG",
+            padding = 4, is_test=False )['synL']
+        tbinseg = ants.mask_image( cit168labT, cit168labT, [7,9,23,25,33,34], binarize=False)
+        snseg = ants.apply_transforms( img, tbinseg,
+            snreg['invtransforms'], interpolator = 'genericLabel' )
+        snseg = snseg * ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
+        snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
+    else :
+        snseg = None
+        snseg_desc = None
 
     if verbose:
         print( "brainstem and cerebellar segmentation" )
