@@ -2486,7 +2486,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         print("parcellation")
 
     ##### hierarchical labeling
-    myparc = deep_brain_parcellation( img, templateb,
+    myparc = deep_brain_parcellation( x, templateb,
         img6seg = img6seg,
         atropos_prior = atropos_prior,
         do_cortical_propagation = not is_test, verbose=verbose )
