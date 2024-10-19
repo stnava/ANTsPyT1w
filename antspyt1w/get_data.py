@@ -968,7 +968,7 @@ def deep_brain_parcellation(
     if verbose:
         print("Begin DKT")
 
-    dktprepro = False
+    dktprepro = True
     dkt = antspynet.desikan_killiany_tourville_labeling(
         target_image,
         do_preprocessing=dktprepro,
@@ -976,7 +976,7 @@ def deep_brain_parcellation(
         do_lobar_parcellation = True
     )
 
-    if dktprepro:
+    if not dktprepro:
         for myk in dkt.keys():
             dkt[myk] = ants.apply_transforms(
                 target_image,
