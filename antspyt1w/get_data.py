@@ -1091,6 +1091,7 @@ def deep_hippo(
 
 
 def dap( x ):
+    return( antspynet.deep_atropos( [x,None,None],  do_preprocessing=True )['segmentation_image'] )
     bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
     bbt = antspynet.brain_extraction( bbt, "t1" ) * bbt
     qaff=ants.registration( bbt, ants.rank_intensity(x), "AffineFast", aff_metric='GC', random_seed=1 )
