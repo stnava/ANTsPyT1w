@@ -155,33 +155,52 @@ def map_segmentation_to_dataframe( segmentation_type, segmentation_image ):
     mylgo = ants.label_geometry_measures( segmentation_image )
     return pd.merge( mydf, mylgo, how='left', on=["Label"] )
 
-def map_intensity_to_dataframe( segmentation_type, intensity_image, segmentation_image ):
+
+def map_intensity_to_dataframe(segmentation_type, intensity_image, segmentation_image):
     """
-    Match itensity values within segmentation labels to its appropriate data frame.
+    Match intensity values within segmentation labels to an appropriate data frame.
 
     Arguments
     ---------
-    segmentation_type : string
-        name of segmentation_type data frame to retrieve
-        Options:
-            - see get_data function or ~/.antspyt1w folder
-            - e.g. lobes
+    segmentation_type : string or pandas.DataFrame
+        If string:
+            Name of the segmentation type data frame to retrieve using get_data.
+            Options include data available via get_data (e.g., "lobes").
+        If pandas.DataFrame:
+            A pre-existing DataFrame containing label information.
 
-    intensity_image : antsImage with intensity values to summarize
+    intensity_image : ants.ANTsImage
+        ANTsImage with intensity values to summarize.
 
-    segmentation_image : antsImage with same values (or mostly the same) as are
-        expected by segmentation_type
+    segmentation_image : ants.ANTsImage
+        ANTsImage with labels (or mostly the same values) as expected by segmentation_type.
 
     Returns
     -------
-    dataframe
-
+    pandas.DataFrame
+        A DataFrame summarizing the intensity values within segmentation labels.
     """
-    mydf_fn = get_data( segmentation_type )
-    mydf = pd.read_csv( mydf_fn )
-    mylgo = ants.label_stats( intensity_image, segmentation_image )
-    mylgo = mylgo.rename(columns = {'LabelValue':'Label'})
-    return pd.merge( mydf, mylgo, how='left', on=["Label"] )
+    if isinstance(segmentation_type, str):
+        # Retrieve the data frame based on the segmentation type string
+        mydf_fn = get_data(segmentation_type)
+        mydf = pd.read_csv(mydf_fn)
+    elif isinstance(segmentation_type, pd.DataFrame):
+        # Use the provided DataFrame
+        mydf = segmentation_type
+    else:
+        raise ValueError("segmentation_type must be either a string or a pandas DataFrame")
+
+    # Get label statistics for the intensity and segmentation images
+    mylgo = ants.label_stats(intensity_image, segmentation_image)
+
+    # Rename the label column to match expected name for merging
+    mylgo = mylgo.rename(columns={'LabelValue': 'Label'})
+
+    # Merge the segmentation DataFrame with the label statistics
+    result = pd.merge(mydf, mylgo, how='left', on=["Label"])
+    
+    return result
+
 
 def myproduct(lst):
     return( functools.reduce(mul, lst) )
