@@ -829,7 +829,7 @@ def special_crop( x, pt, domainer ):
     mim = ants.copy_image_info(loi,mim)
     return ants.resample_image_to_target( x, mim )
 
-def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
+def label_hemispheres( x, template=None, templateLR=None, reg_iterations=[200,50,2,0] ):
     """
     quick somewhat noisy registration solution to hemisphere labeling. typically
     we label left as 1 and right as 2.
@@ -843,6 +843,17 @@ def label_hemispheres( x, template, templateLR, reg_iterations=[200,50,2,0] ):
     reg_iterations: reg_iterations for ants.registration
 
     """
+
+    if template is None or templateLR is None:
+        tfn = get_data('T_template0', target_extension='.nii.gz' )
+        tfnw = get_data('T_template0_WMP', target_extension='.nii.gz' )
+        tlrfn = get_data('T_template0_LR', target_extension='.nii.gz' )
+        bfn = antspynet.get_antsxnet_data( "croppedMni152" )
+        template = ants.image_read( tfn )
+        template = ( template * antspynet.brain_extraction( template, 't1' ) ).iMath( "Normalize" )
+        templateawmprior = ants.image_read( tfnw )
+        templateLR = ants.image_read( tlrfn )
+
     reg = ants.registration(
         ants.rank_intensity(x),
         ants.rank_intensity(template),
@@ -2451,7 +2462,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     templateb = ( templateb * antspynet.brain_extraction( templateb, 't1' ) ).iMath( "Normalize" )
     if imgbxt is None:
         probablySR = False
-        imgbxt = brain_extraction( ants.iMath( x, "Normalize" ) )
+        # brain_extraction( ants.iMath( x, "Normalize" ) )
+        imgbxt =  antspynet.brain_extraction( ants.iMath( x, "Normalize" ), modality="bw20").threshold_image(3,3)
         img = preprocess_intensity( ants.iMath( x, "Normalize" ), imgbxt )
     else:
         probablySR = True
