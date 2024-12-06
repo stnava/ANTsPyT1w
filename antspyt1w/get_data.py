@@ -2482,7 +2482,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     if imgbxt is None:
         probablySR = False
         # brain_extraction( ants.iMath( x, "Normalize" ) )
-        imgbxt =  antspynet.brain_extraction( ants.iMath( x, "Normalize" ), modality="t1threetissue")['segmentation_image'].threshold_image(3,3)
+        imgbxt =  antspynet.brain_extraction( ants.iMath( x, "Normalize" ), modality="t1threetissue")['segmentation_image'].threshold_image(1,1)
         img = preprocess_intensity( ants.iMath( x, "Normalize" ), imgbxt )
     else:
         probablySR = True

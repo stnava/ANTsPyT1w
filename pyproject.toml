@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "antspyt1w"
-version = "0.9.5"
+version = "0.9.6"
 description = "T1w human neuroimage processing with antspyx"
 readme = "README.md"
 requires-python = ">=3.6"
