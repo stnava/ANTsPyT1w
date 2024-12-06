@@ -28,7 +28,7 @@ def run_test():
                 uid = re.sub(".nii.gz","",uid)
                 outdf = antspyt1w.merge_hierarchical_csvs_to_wide_format( testhier['dataframes'], identifier=uid )
                 outdf.to_csv( tempfn + "_mergewide.csv" )
-            temp_dir.cleanup()
+            # temp_dir.cleanup()
             sys.exit(0)
         except AssertionError:
             print("Failure")
