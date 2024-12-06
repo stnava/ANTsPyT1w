@@ -18,7 +18,7 @@ dependencies = [
     "numpy>=1.19.4",
     "pandas>=1.0.1",
     "antspyx>=0.4.2",
-    "antspynet>=0.2.8",
+    "antspynet>=0.2.9",
     "tensorflow-probability[tf]",
     "pathlib",
     "PyNomaly>=0.3.3",
