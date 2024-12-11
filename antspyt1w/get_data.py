@@ -37,7 +37,8 @@ from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
 
-def get_data( name=None, force_download=False, version=46, target_extension='.csv' ):
+
+def get_data(name=None, force_download=False, version=46, target_extension='.csv'):
     """
     Get ANTsPyT1w data filename
 
@@ -81,29 +82,42 @@ def get_data( name=None, force_download=False, version=46, target_extension='.cs
     >>> import ants
     >>> ppmi = ants.get_ants_data('ppmi')
     """
+    import os
+    import shutil
+    from pathlib import Path
+    import tensorflow as tf
+    DATA_PATH = os.path.join(os.path.expanduser('~'), '.antspyt1w')
     os.makedirs(DATA_PATH, exist_ok=True)
 
-    def download_data( version ):
+    def download_data(version):
         url = "https://ndownloader.figshare.com/articles/14766102/versions/" + str(version)
         target_file_name = "14766102.zip"
         target_file_name_path = tf.keras.utils.get_file(target_file_name, url,
-            cache_subdir=DATA_PATH, extract = True )
-        os.remove( DATA_PATH + target_file_name )
+            cache_subdir=DATA_PATH, extract=True)
+        os.remove(os.path.join(DATA_PATH, target_file_name))
 
     if force_download:
-        download_data( version = version )
+        download_data(version=version)
 
+    # Move files from subdirectories to the main directory
+    for root, dirs, files in os.walk(DATA_PATH):
+        for file in files:
+            if root != DATA_PATH:
+                shutil.move(os.path.join(root, file), DATA_PATH)
+        for dir in dirs:
+            if root != DATA_PATH:
+                shutil.rmtree(os.path.join(root, dir))
 
     files = []
     for fname in os.listdir(DATA_PATH):
-        if ( fname.endswith(target_extension) ) :
+        if fname.endswith(target_extension):
             fname = os.path.join(DATA_PATH, fname)
             files.append(fname)
 
-    if len( files ) == 0 :
-        download_data( version = version )
+    if len(files) == 0:
+        download_data(version=version)
         for fname in os.listdir(DATA_PATH):
-            if ( fname.endswith(target_extension) ) :
+            if fname.endswith(target_extension):
                 fname = os.path.join(DATA_PATH, fname)
                 files.append(fname)
 
@@ -113,14 +127,15 @@ def get_data( name=None, force_download=False, version=46, target_extension='.cs
     datapath = None
 
     for fname in os.listdir(DATA_PATH):
-        mystem = (Path(fname).resolve().stem)
-        mystem = (Path(mystem).resolve().stem)
-        mystem = (Path(mystem).resolve().stem)
-        if ( name == mystem and fname.endswith(target_extension) ) :
+        mystem = Path(fname).resolve().stem
+        mystem = Path(mystem).resolve().stem
+        mystem = Path(mystem).resolve().stem
+        if name == mystem and fname.endswith(target_extension):
             datapath = os.path.join(DATA_PATH, fname)
 
     if datapath is None:
         os.listdir(DATA_PATH)
+        raise ValueError("datapath in get_data is None - must be some issue in downloading the data from figshare. try calling get_data in the setup of your system.")
     return datapath
 
 
