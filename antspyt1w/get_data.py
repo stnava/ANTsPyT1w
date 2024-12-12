@@ -134,7 +134,7 @@ def get_data(name=None, force_download=False, version=46, target_extension='.csv
     if force_download:
         download_data(version=version)
 
-     mv_subfolder_files( os.path.expanduser("~/.antspyt1w"), False )
+    mv_subfolder_files( os.path.expanduser("~/.antspyt1w"), False )
 
     # Move files from subdirectories to the main directory
     for root, dirs, files in os.walk(DATA_PATH):
@@ -158,7 +158,7 @@ def get_data(name=None, force_download=False, version=46, target_extension='.csv
                 fname = os.path.join(DATA_PATH, fname)
                 files.append(fname)
 
-     mv_subfolder_files( os.path.expanduser("~/.antspyt1w"), False )
+    mv_subfolder_files( os.path.expanduser("~/.antspyt1w"), False )
 
     if name == 'all':
         return files
