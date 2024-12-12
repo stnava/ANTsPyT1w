@@ -89,6 +89,41 @@ def get_data(name=None, force_download=False, version=46, target_extension='.csv
     DATA_PATH = os.path.join(os.path.expanduser('~'), '.antspyt1w')
     os.makedirs(DATA_PATH, exist_ok=True)
 
+    def mv_subfolder_files(folder, verbose=False):
+        """
+        Move files from subfolders to the parent folder.
+
+        Parameters
+        ----------
+        folder : str
+            Path to the folder.
+        verbose : bool, optional
+            Print information about the files and folders being processed (default is False).
+
+        Returns
+        -------
+        None
+        """
+        import os
+        import shutil
+        for root, dirs, files in os.walk(folder):
+            if verbose:
+                print(f"Processing directory: {root}")
+                print(f"Subdirectories: {dirs}")
+                print(f"Files: {files}")
+            
+            for file in files:
+                if root != folder:
+                    if verbose:
+                        print(f"Moving file: {file} from {root} to {folder}")
+                    shutil.move(os.path.join(root, file), folder)
+            
+            for dir in dirs:
+                if root != folder:
+                    if verbose:
+                        print(f"Removing directory: {dir} from {root}")
+                    shutil.rmtree(os.path.join(root, dir))
+
     def download_data(version):
         url = "https://ndownloader.figshare.com/articles/14766102/versions/" + str(version)
         target_file_name = "14766102.zip"
@@ -98,6 +133,8 @@ def get_data(name=None, force_download=False, version=46, target_extension='.csv
 
     if force_download:
         download_data(version=version)
+
+     mv_subfolder_files( os.path.expanduser("~/.antspyt1w"), False )
 
     # Move files from subdirectories to the main directory
     for root, dirs, files in os.walk(DATA_PATH):
@@ -120,6 +157,8 @@ def get_data(name=None, force_download=False, version=46, target_extension='.csv
             if fname.endswith(target_extension):
                 fname = os.path.join(DATA_PATH, fname)
                 files.append(fname)
+
+     mv_subfolder_files( os.path.expanduser("~/.antspyt1w"), False )
 
     if name == 'all':
         return files
