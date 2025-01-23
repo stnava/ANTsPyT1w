@@ -174,9 +174,8 @@ def get_data(name=None, force_download=False, version=46, target_extension='.csv
 
     if datapath is None:
         os.listdir(DATA_PATH)
-        raise ValueError("datapath in get_data is None - must be some issue in downloading the data from figshare. try calling get_data in the setup of your system.")
+        warnings.warn("datapath in get_data is None - must be some issue in downloading the data from figshare. try calling get_data in the setup of your system.")
     return datapath
-
 
 
 def map_segmentation_to_dataframe( segmentation_type, segmentation_image ):
