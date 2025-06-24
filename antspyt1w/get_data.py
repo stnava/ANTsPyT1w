@@ -524,14 +524,14 @@ def resnet_grader( x, weights_filename = None ):
     t1 = ants.rank_intensity( t1, mask=bxt, get_mask=True )
     templateb = ants.image_read( get_data( "S_template3_brain", target_extension='.nii.gz' ) )
     templateb = ants.crop_image( templateb ).resample_image( [1,1,1] )
-    templateb = antspynet.pad_image_by_factor( templateb, 8 )
+    templateb = ants.pad_image_by_factor( templateb, 8 )
     templatebsmall = ants.resample_image( templateb, [2,2,2] )
     reg = ants.registration( templatebsmall, t1, 'Similarity', verbose=False )
     ilist = list()
     refimg=templateb
     ilist.append( [refimg] )
     nsim = 16
-    uu = antspynet.randomly_transform_image_data( refimg, ilist,
+    uu = ants.randomly_transform_image_data( refimg, ilist,
             number_of_simulations = nsim,
             transform_type='scaleShear', sd_affine=0.075 )
     fwdaffgd = ants.read_transform( reg['fwdtransforms'][0])
