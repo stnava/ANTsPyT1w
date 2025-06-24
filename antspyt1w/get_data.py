@@ -945,7 +945,7 @@ def deep_tissue_segmentation( x, template=None, registration_map=None,
     extra CSF issue.  returns segmentation and probability images. see
     the tissues csv available from get_data.
 
-    x: input image
+    x: input image, raw
 
     template: MNI space template, should be "croppedMni152" or "biobank"
 
@@ -959,12 +959,9 @@ def deep_tissue_segmentation( x, template=None, registration_map=None,
 
     """
 
-    dapper = antspynet.deep_atropos( [x,None,None],
-        do_preprocessing=True, use_spatial_priors=1 )
+    dapper = antspynet.deep_atropos( x )
 
     myk='segmentation_image'
-    # the mysterious line below corrects for over-segmentation of CSF
-    dapper[myk] = dapper[myk] * ants.threshold_image( x, 1.0e-6, math.inf )
     if atropos_prior is not None:
         msk = ants.threshold_image( dapper['segmentation_image'], 2, 3 ).iMath("GetLargestComponent",50)
         msk = ants.morphology( msk, "close", 2 )
@@ -1039,7 +1036,7 @@ def deep_brain_parcellation(
     if img6seg is None:
         if verbose:
             print( "do deep_tissue_segmentation")
-        mydap = deep_tissue_segmentation( target_image, atropos_prior=atropos_prior  )
+        mydap = deep_tissue_segmentation( target_image  )
     else:
         if verbose:
             print( "use existing deep_tissue_segmentation")
@@ -1054,20 +1051,10 @@ def deep_brain_parcellation(
     dktprepro = True
     dkt = antspynet.desikan_killiany_tourville_labeling(
         target_image,
-        do_preprocessing=dktprepro,
+        do_preprocessing=True,
         return_probability_images=False,
         do_lobar_parcellation = True
     )
-
-    if not dktprepro:
-        for myk in dkt.keys():
-            dkt[myk] = ants.apply_transforms(
-                target_image,
-                dkt[myk],
-                rig['fwdtransforms'],
-                whichtoinvert=[True],
-                interpolator='genericLabel',
-            )
 
     myhemiL = ants.threshold_image( dkt['lobar_parcellation'], 1, 6 )
     myhemiR = ants.threshold_image( dkt['lobar_parcellation'], 7, 12 )
@@ -3452,14 +3439,14 @@ def super_resolution_segmentation_with_probabilities(
     return labels
 
 def kelly_kapowski_thickness( x, labels,
-    label_description='dkt', iterations=45, max_thickness=6.0, verbose=False ):
+    label_description='dkt', iterations=45, max_thickness=6.0, mydap=None, verbose=False ):
     """
     Apply a two-channel super resolution model to an image and probability pair.
 
     Arguments
     ---------
     x : ANTsImage
-        t1 brain extracted
+        pre-existing deep tissue segmentation
 
     labels : ANTsImage
         cortical parcellation
@@ -3490,9 +3477,8 @@ def kelly_kapowski_thickness( x, labels,
         myverb=1
     else:
         myverb=0
-    mydap = deep_tissue_segmentation( x )
-    kkthk = ants.kelly_kapowski( s=mydap['segmentation_image'],
-            g=mydap['probability_images'][2], w=mydap['probability_images'][3],
+    kkthk = ants.kelly_kapowski( s=x['segmentation_image'],
+            g=x['probability_images'][2], w=x['probability_images'][3],
             its=iterations, r=0.025, m=1.5, verbose=myverb )
     kkthkmask = ants.threshold_image( kkthk, 0.25, max_thickness )
     kkdf = map_intensity_to_dataframe(
