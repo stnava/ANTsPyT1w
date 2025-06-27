@@ -3446,7 +3446,7 @@ def kelly_kapowski_thickness( x, labels,
     Arguments
     ---------
     x : ANTsImage
-        pre-existing deep tissue segmentation
+        raw t1 image
 
     labels : ANTsImage
         cortical parcellation
@@ -3477,8 +3477,9 @@ def kelly_kapowski_thickness( x, labels,
         myverb=1
     else:
         myverb=0
-    kkthk = ants.kelly_kapowski( s=x['segmentation_image'],
-            g=x['probability_images'][2], w=x['probability_images'][3],
+    seg = deep_tissue_segmentation( x )
+    kkthk = ants.kelly_kapowski( s=seg['segmentation_image'],
+            g=seg['probability_images'][2], w=seg['probability_images'][3],
             its=iterations, r=0.025, m=1.5, verbose=myverb )
     kkthkmask = ants.threshold_image( kkthk, 0.25, max_thickness )
     kkdf = map_intensity_to_dataframe(
