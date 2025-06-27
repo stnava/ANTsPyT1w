@@ -722,7 +722,7 @@ def brain_extraction( x, dilation = 8.0, method = 'v1', deform=True, verbose=Fal
     if deform:
         reorient_template_file_name_path = antspynet. get_antsxnet_data("S_template3" )
         template = ants.image_read( reorient_template_file_name_path )
-        reg = ants.registration( template, x, 'SyN' )
+        reg = ants.registration( template, x, 'antsRegistrationSyNQuickRepro[s]' )
 
     closedilmm = 5.0
     spacing = ants.get_spacing(x)

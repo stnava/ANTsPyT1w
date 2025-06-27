@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "antspyt1w"
-version = "1.0.0"
+version = "1.0.1"
 description = "T1w human neuroimage processing with antspyx"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -22,7 +22,7 @@ dependencies = [
     "h5py>=3.10.0",
     "numpy>=1.19.4",
     "pandas>=1.0.1",
-    "antspyx>=0.4.2",
+    "antspyx>=0.6.1",
     "antspynet>=0.2.9",
     "tensorflow-probability>=0.22.0",
     "tensorflow>=2.11.0",
