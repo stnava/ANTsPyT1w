@@ -1251,7 +1251,7 @@ def deep_hippo(
 
 
 def dap( x ):
-    return( antspynet.deep_atropos( [x,None,None],  do_preprocessing=True )['segmentation_image'] )
+    return( antspynet.deep_atropos( x, do_preprocessing=True )['segmentation_image'] )
 
 def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False, target_range=[1,0] ):
     """
@@ -1646,11 +1646,11 @@ def hemi_reg(
     """
 
     img = ants.rank_intensity( input_image )
-    ionlycerebrum = ants.mask_image( input_image_tissue_segmentation,
-        input_image_tissue_segmentation, labels_to_register, 1 )
+    # ionlycerebrum = ants.mask_image( input_image_tissue_segmentation,
+    #    input_image_tissue_segmentation, labels_to_register, 1 )
+    ionlycerebrum = brain_extraction( input_image )
 
-    tdap = dap( input_template )
-    tonlycerebrum = ants.mask_image( tdap, tdap, labels_to_register, 1 )
+    tonlycerebrum = brain_extraction( input_template )
     template = ants.rank_intensity( input_template )
 
     regsegits=[200,200,20]
@@ -1772,11 +1772,9 @@ def region_reg(
     """
 
     img = ants.rank_intensity( input_image )
-    ionlycerebrum = ants.mask_image( input_image_tissue_segmentation,
-        input_image_tissue_segmentation, labels_to_register, 1 )
+    ionlycerebrum = brain_extraction( input_image )
 
-    tdap = dap( input_template )
-    tonlycerebrum = ants.mask_image( tdap, tdap, labels_to_register, 1 )
+    tonlycerebrum = brain_extraction( input_template )
     template = ants.rank_intensity( input_template )
 
     regsegits=[200,200,20]
@@ -1827,7 +1825,9 @@ def region_reg(
     return {
         "synL":synL,
         "synLpng":fignameL,
-        "lhjac":lhjac
+        "lhjac":lhjac,
+        'rankimg':img*ionlycerebrum,
+        'template':template*tonlycerebrum
         }
 
 
@@ -2708,6 +2708,44 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     ##### intensity modifications
     img = ants.iMath( img, "Normalize" )
 
+    if verbose:
+        print("parcellation")
+
+    ##### hierarchical labeling
+    myparc = deep_brain_parcellation( x, templateb,
+        img6seg = img6seg,
+        atropos_prior = atropos_prior,
+        do_cortical_propagation = not is_test, verbose=verbose )
+
+
+    cit168lab = None
+    cit168reg = None
+    cit168lab_desc = None
+    cit168adni = get_data( "CIT168_T1w_700um_pad_adni",target_extension='.nii.gz')
+    cit168adni = ants.image_read( cit168adni ).iMath("Normalize")
+    cit168labT = get_data( "det_atlas_25_pad_LR_adni", target_extension='.nii.gz' )
+    cit168labT = ants.image_read( cit168labT )
+    cit168labStem = get_data( "CIT168_T1w_700um_pad_adni_brainstem", target_extension='.nii.gz' )
+    cit168labStem = ants.image_read( cit168labStem )
+
+    if verbose:
+        print("cit168")
+
+    cit168reg = region_reg(
+            input_image = img,
+            input_image_tissue_segmentation=myparc['tissue_segmentation'],
+            input_image_region_segmentation=imgbxt,
+            input_template=cit168adni,
+            input_template_region_segmentation=ants.threshold_image( cit168adni, 0.15, 1 ),
+            output_prefix=output_prefix + "_CIT168RRSYN",
+            padding=10,
+            labels_to_register = [1,2,3,4,5,6],
+            total_sigma=0.5,
+            is_test=not cit168 )['synL']
+    cit168lab = ants.apply_transforms( img, cit168labT,
+                    cit168reg['invtransforms'], interpolator = 'nearestNeighbor' )
+    cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(axis=0)
+
     # optional - quick look at result
     # bxt_png = output_prefix + "_brain_extraction_dnz_n4_view.png"
     # ants.plot(img * 255.0,axis=2,ncol=8,nslices=24, crop=True, black_bg=False,
@@ -2718,15 +2756,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     # assuming data is reasonable quality, we should proceed with the rest ...
     mylr = label_hemispheres( img, templatea, templatealr )
-
-    if verbose:
-        print("parcellation")
-
-    ##### hierarchical labeling
-    myparc = deep_brain_parcellation( x, templateb,
-        img6seg = img6seg,
-        atropos_prior = atropos_prior,
-        do_cortical_propagation = not is_test, verbose=verbose )
 
     ##### accumulate data into data frames
     hemi = map_segmentation_to_dataframe( "hemisphere", myparc['hemisphere_labels'] )
@@ -2743,8 +2772,8 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         crop=True, black_bg=False )
 
     myhypo = None
-    if verbose:
-        print("WMH")
+#    if verbose:
+#        print("WMH")
     ##### below here are more exploratory nice to have outputs
 #    myhypo = t1_hypointensity(
 #        img,
@@ -2815,35 +2844,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
           interpolator='nearestNeighbor' ) * ants.threshold_image( mylr, 2, 2  )
         wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
         wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
-
-    cit168lab = None
-    cit168reg = None
-    cit168lab_desc = None
-    cit168adni = get_data( "CIT168_T1w_700um_pad_adni",target_extension='.nii.gz')
-    cit168adni = ants.image_read( cit168adni ).iMath("Normalize")
-    cit168labT = get_data( "det_atlas_25_pad_LR_adni", target_extension='.nii.gz' )
-    cit168labT = ants.image_read( cit168labT )
-    cit168labStem = get_data( "CIT168_T1w_700um_pad_adni_brainstem", target_extension='.nii.gz' )
-    cit168labStem = ants.image_read( cit168labStem )
-
-    if verbose:
-        print("cit168")
-
-    if not is_test:
-        cit168reg = region_reg(
-            input_image = img,
-            input_image_tissue_segmentation=myparc['tissue_segmentation'],
-            input_image_region_segmentation=imgbxt,
-            input_template=cit168adni,
-            input_template_region_segmentation=ants.threshold_image( cit168adni, 0.15, 1 ),
-            output_prefix=output_prefix + "_CIT168RRSYN",
-            padding=10,
-            labels_to_register = [1,2,3,4,5,6],
-            total_sigma=0.5,
-            is_test=not cit168 )['synL']
-        cit168lab = ants.apply_transforms( img, cit168labT,
-                    cit168reg['invtransforms'], interpolator = 'nearestNeighbor' )
-        cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(axis=0)
 
     if verbose:
         print("hippocampus")

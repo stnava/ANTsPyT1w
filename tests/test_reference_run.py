@@ -71,3 +71,14 @@ else:
             mmdfw = antspyt1w.merge_hierarchical_csvs_to_wide_format( testhier['dataframes'] )
             return testhier
             # assert math.fabs(testhier['brain_image']['resnetGrade']-1.56) < 0.1
+
+
+if False:
+    import ants
+    import antspyt1w
+    fn = antspyt1w.get_data('PPMI-3803-20120814-MRI_T1-I340756', target_extension='.nii.gz' )
+    img = ants.image_read( fn )
+    tempfn='/tmp/apt1wtestA'
+    testhier0 = antspyt1w.hierarchical( img, output_prefix=tempfn, labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
+    tempfn='/tmp/apt1wtestB'
+    testhier1 = antspyt1w.hierarchical( img, output_prefix=tempfn, labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
