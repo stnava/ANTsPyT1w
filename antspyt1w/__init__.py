@@ -43,3 +43,5 @@ from .get_data import kelly_kapowski_thickness
 from .get_data import minimal_sr_preprocessing
 from .get_data import set_global_scientific_computing_random_seed
 from .get_data import get_global_scientific_computing_random_seed
+from .get_data import localsyn
+
