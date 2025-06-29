@@ -2671,6 +2671,14 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     myicv = icv( x )
 
+    if verbose:
+        print("NBM")
+    ##### deep_nbm basal forebrain parcellation
+    braintissuemask =  ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
+    deep_bf = deep_nbm( img * braintissuemask,
+        get_data("deep_nbm_rank",target_extension='.h5'),
+        csfquantile=None, aged_template=True )
+
     if is_test:
         mydataframes = {
                 "icv": myicv,
@@ -2679,6 +2687,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
                 "dktlobes":dktl,
                 "dktregions":dktp,
                 "dktcortex":dktc,
+                "bf":deep_bf['description'],
                 }
 
         outputs = {
@@ -2686,6 +2695,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
                 "brain_extraction": imgbxt,
                 "left_right": mylr,
                 "dkt_parc": myparc,
+                "bf":deep_bf['segmentation'],
                 "dataframes": mydataframes
             }
 
@@ -2765,15 +2775,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     ##### deep_flash medial temporal lobe parcellation
     deep_flash = deep_mtl(img, sr_model = sr_model )
-
-    if verbose:
-        print("NBM")
-
-    ##### deep_nbm basal forebrain parcellation
-    braintissuemask =  ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
-    deep_bf = deep_nbm( img * braintissuemask,
-        get_data("deep_nbm_rank",target_extension='.h5'),
-        csfquantile=None, aged_template=True )
 
     if verbose:
         print("deep CIT168")
