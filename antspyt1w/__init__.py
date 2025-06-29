@@ -14,6 +14,7 @@ from .get_data import deep_mtl
 from .get_data import label_hemispheres
 from .get_data import brain_extraction
 from .get_data import deep_hippo
+from .get_data import icv
 from .get_data import hemi_reg
 from .get_data import region_reg
 from .get_data import t1_hypointensity
@@ -40,3 +41,5 @@ from .get_data import label_and_img_to_sr
 from .get_data import hierarchical_to_sr
 from .get_data import kelly_kapowski_thickness
 from .get_data import minimal_sr_preprocessing
+from .get_data import set_global_scientific_computing_random_seed
+from .get_data import get_global_scientific_computing_random_seed

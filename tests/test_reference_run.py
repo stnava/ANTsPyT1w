@@ -68,5 +68,6 @@ else:
             img = ants.image_read( fn )
             tempfn=temp_dir+'/apt1wtest'
             testhier = antspyt1w.hierarchical( img, output_prefix=tempfn, labels_to_register=None, imgbxt=None, cit168=False, is_test=True, verbose=True)
+            mmdfw = antspyt1w.merge_hierarchical_csvs_to_wide_format( testhier['dataframes'] )
             return testhier
             # assert math.fabs(testhier['brain_image']['resnetGrade']-1.56) < 0.1

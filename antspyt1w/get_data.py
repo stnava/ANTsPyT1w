@@ -32,11 +32,81 @@ import warnings
 import ants
 import antspynet
 import tensorflow as tf
-
 from multiprocessing import Pool
 
 DATA_PATH = os.path.expanduser('~/.antspyt1w/')
+# Internal global variable to hold the seed
+_GLOBAL_SCIENTIFIC_SEED = None
 
+def set_global_scientific_computing_random_seed(seed: int = 42, deterministic: bool = True):
+    """
+    Set a global seed for reproducibility across Python, NumPy, and scientific ML frameworks.
+
+    Parameters
+    ----------
+    seed : int
+        The seed to use for all random number generators.
+    deterministic : bool
+        If True, sets flags for deterministic behavior in supported libraries (PyTorch, TensorFlow).
+    """
+    global _GLOBAL_SCIENTIFIC_SEED
+    _GLOBAL_SCIENTIFIC_SEED = seed
+
+    # Python's built-in RNG
+    random.seed(seed)
+
+    # NumPy RNG
+    np.random.seed(seed)
+
+    # Set Python hash seed for reproducibility
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    # TensorFlow
+    try:
+        import tensorflow as tf
+        tf.random.set_seed(seed)
+        if deterministic:
+            os.environ["TF_DETERMINISTIC_OPS"] = "1"
+            tf.config.experimental.enable_op_determinism()
+    except ImportError:
+        pass
+
+    # PyTorch
+    try:
+        import torch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        if deterministic:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+    except ImportError:
+        pass
+
+    # JAX
+    try:
+        import jax
+        jax_key = jax.random.PRNGKey(seed)
+        globals()["_jax_key"] = jax_key
+    except ImportError:
+        pass
+
+    warnings.warn("Remember to set 'random_state=seed' in scikit-learn models.", stacklevel=2)
+    print(f"[INFO] Global scientific computing seed set to {seed}")
+
+
+def get_global_scientific_computing_random_seed():
+    """
+    Retrieve the most recently set global seed.
+
+    Returns
+    -------
+    int or None
+        The seed set by `set_global_scientific_computing_seed()`, or None if not yet set.
+    """
+    return _GLOBAL_SCIENTIFIC_SEED
+
+set_global_scientific_computing_random_seed(1234)
 
 def get_data(name=None, force_download=False, version=46, target_extension='.csv'):
     """
@@ -453,7 +523,7 @@ def random_basis_projection( x, template,
     trans = ants.registration( template, norm,
         type_of_transform='antsRegistrationSyNQuickRepro[t]' )
     resamp = ants.registration( template, norm,
-        type_of_transform=type_of_transform,
+        type_of_transform=type_of_transform, total_sigma=0.5,
         # aff_metric='GC',
         random_seed=1, initial_transform=trans['fwdtransforms'][0] )['warpedmovout']
 #    mydelta = ants.from_numpy( ( resamp - template ).abs() )
@@ -703,6 +773,22 @@ def inspect_raw_t1( x, output_prefix, option='both' ):
         "brain_image": pngfnb,
         }
 
+def icv( x ):
+    """
+    Intracranial volume (ICV) estimation from a brain extracted image
+
+    Arguments
+    ---------
+    x : antsImage raw t1
+
+    Returns
+    -------
+    ICV in cubic millimeters
+
+    """
+    icvseg = antspynet.brain_extraction( ants.iMath( x, "Normalize" ), modality="t1threetissue")['segmentation_image'].threshold_image(1,2)
+    np.product = np.prod( ants.get_spacing( x ) ) * icvseg.sum()
+    return pd.DataFrame({'icv': [np.product]})
 
 def brain_extraction( x, dilation = 8.0, method = 'v1', deform=True, verbose=False ):
     """
@@ -719,10 +805,13 @@ def brain_extraction( x, dilation = 8.0, method = 'v1', deform=True, verbose=Fal
     verbose: boolean
 
     """
+    return antspynet.brain_extraction( ants.iMath( x, "Normalize" ), modality="t1threetissue")['segmentation_image'].threshold_image(1,1)
+
     if deform:
         reorient_template_file_name_path = antspynet. get_antsxnet_data("S_template3" )
         template = ants.image_read( reorient_template_file_name_path )
-        reg = ants.registration( template, x, 'antsRegistrationSyNQuickRepro[s]' )
+        reg = ants.registration( template, x, 'antsRegistrationSyNQuickRepro[s]', 
+             total_sigma=0.5 )
 
     closedilmm = 5.0
     spacing = ants.get_spacing(x)
@@ -929,14 +1018,14 @@ def label_hemispheres( x, template=None, templateLR=None, reg_iterations=[200,50
     reg = ants.registration(
         ants.rank_intensity(x),
         ants.rank_intensity(template),
-        'SyN',
+        'antsRegistrationSyNQuickRepro[s]',
         aff_metric='GC',
         syn_metric='CC',
         syn_sampling=2,
-        reg_iterations=reg_iterations,
+        reg_iterations=reg_iterations, total_sigma=0.5,
         random_seed = 1 )
     return( ants.apply_transforms( x, templateLR, reg['fwdtransforms'],
-        interpolator='genericLabel') )
+        interpolator='nearestNeighbor') )
 
 def deep_tissue_segmentation( x, template=None, registration_map=None,
     atropos_prior=None, sr_model=None ):
@@ -1027,6 +1116,7 @@ def deep_brain_parcellation(
     rig = ants.registration( template, ants.rank_intensity(target_image),
         "antsRegistrationSyNQuickRepro[a]",
         aff_iterations = (500,200,0,0),
+        total_sigma=0.5,        
         random_seed=1 )
     rigi = ants.apply_transforms( template, target_image, rig['fwdtransforms'])
 
@@ -1106,7 +1196,7 @@ def deep_hippo(
         if verbose:
             print( "try " + str(k))
         rig = ants.registration( template, ants.rank_intensity(img),
-            tx_type, random_seed=k,  verbose=verbose )
+            tx_type, random_seed=k,  total_sigma=0.5, verbose=verbose )
         if verbose:
             print( rig )
         rigi = ants.apply_transforms( template, img, rig['fwdtransforms'] )
@@ -1131,7 +1221,7 @@ def deep_hippo(
             hipp,
             rig['fwdtransforms'],
             whichtoinvert=[True],
-            interpolator='genericLabel',
+            interpolator='nearestNeighbor',
         )
         avgleft = avgleft + ants.threshold_image( hippr, 2, 2 ).iMath("GetLargestComponent",1) / float(number_of_tries)
         avgright = avgright + ants.threshold_image( hippr, 1, 1 ).iMath("GetLargestComponent",1) / float(number_of_tries)
@@ -1162,19 +1252,6 @@ def deep_hippo(
 
 def dap( x ):
     return( antspynet.deep_atropos( [x,None,None],  do_preprocessing=True )['segmentation_image'] )
-    bbt = ants.image_read( antspynet.get_antsxnet_data( "croppedMni152" ) )
-    bbt = antspynet.brain_extraction( bbt, "t1" ) * bbt
-    qaff=ants.registration( bbt, ants.rank_intensity(x), "AffineFast", aff_metric='GC', random_seed=1 )
-    qaff['warpedmovout'] = ants.apply_transforms( bbt, x, qaff['fwdtransforms'] )
-    dapper = antspynet.deep_atropos( [qaff['warpedmovout'],None,None],  do_preprocessing=False )
-    dappertox = ants.apply_transforms(
-      x,
-      dapper['segmentation_image'],
-      qaff['fwdtransforms'],
-      interpolator='genericLabel',
-      whichtoinvert=[True]
-    )
-    return(  dappertox )
 
 def label_and_img_to_sr( img, label_img, sr_model, return_intensity=False, target_range=[1,0] ):
     """
@@ -1276,7 +1353,7 @@ def hierarchical_to_sr( t1hier, sr_model, tissue_sr=False, blending=0.5, verbose
     else:
         t1hier['brain_n4_dnz'] = tempupimg
         t1hier['dkt_parc']['tissue_segmentation'] = ants.resample_image_to_target(
-            t1hier['dkt_parc']['tissue_segmentation'], tempupimg, 'genericLabel')
+            t1hier['dkt_parc']['tissue_segmentation'], tempupimg, 'nearestNeighbor')
 
     if verbose:
         print("unique tissue labels")
@@ -1353,7 +1430,7 @@ def deep_mtl(t1, sr_model=None, verbose=True):
 
     template = ants.image_read(antspynet.get_antsxnet_data("deepFlashTemplateT1SkullStripped"))
     registration = ants.registration(fixed=template, moving=t1,
-        type_of_transform="antsRegistrationSyNQuickRepro[a]", verbose=verbose)
+        type_of_transform="antsRegistrationSyNQuickRepro[a]", total_sigma=0.5, verbose=verbose)
     template_transforms = dict(fwdtransforms=registration['fwdtransforms'],
                                invtransforms=registration['invtransforms'])
     t1_warped = registration['warpedmovout']
@@ -1410,7 +1487,7 @@ def deep_mtl(t1, sr_model=None, verbose=True):
                                           moving=df['segmentation_image'],
                                           transformlist=template_transforms['invtransforms'],
                                           whichtoinvert=[True],
-                                          interpolator="genericLabel",
+                                          interpolator="nearestNeighbor",
                                           verbose=verbose)
     mtl_description = map_segmentation_to_dataframe( 'mtl_description', relabeled_image )
 
@@ -1431,7 +1508,7 @@ def localsyn(img, template, hemiS, templateHemi, whichHemi, padder, iterations,
         ants.threshold_image( themi, loquant, math.inf),
         whichHemi, whichHemi ).iMath("MD",padder)
     tcrop = ants.crop_image( themi, hemicropmask  )
-    syn = ants.registration( tcrop, ihemi, 'SyN', aff_metric='GC',
+    syn = ants.registration( tcrop, ihemi, 'antsRegistrationSyNQuickRepro[s]', # aff_metric='GC',
         syn_metric='CC', syn_sampling=2, reg_iterations=iterations,
         flow_sigma=3.0, total_sigma=total_sigma,
         verbose=False, outprefix = output_prefix, random_seed=1 )
@@ -1497,7 +1574,7 @@ def hemi_reg(
 #        template = ants.resample_image( template, (0.5,0.5,0.5), interp_type = 0 )
 #        tonlycerebrum = ants.resample_image_to_target( tonlycerebrum,
 #            template,
-#            interp_type='genericLabel',
+#            interp_type='nearestNeighbor',
 #        )
 
     if is_test:
@@ -1506,7 +1583,7 @@ def hemi_reg(
     input_template_hemisphere_labels = ants.resample_image_to_target(
         input_template_hemisphere_labels,
         template,
-        interp_type='genericLabel',
+        interp_type='nearestNeighbor',
     )
 
     # now do a hemisphere focused registration
@@ -1623,7 +1700,7 @@ def region_reg(
         template = ants.resample_image( template, (0.5,0.5,0.5), interp_type = 0 )
         tonlycerebrum = ants.resample_image_to_target( tonlycerebrum,
             template,
-            interp_type='genericLabel',
+            interp_type='nearestNeighbor',
         )
 
     if is_test:
@@ -1632,7 +1709,7 @@ def region_reg(
     input_template_region_segmentation = ants.resample_image_to_target(
         input_template_region_segmentation,
         template,
-        interp_type='genericLabel',
+        interp_type='nearestNeighbor',
     )
 
     # now do a region focused registration
@@ -1710,10 +1787,10 @@ def t1_hypointensity( x, xsegmentation, xWMProbability, template, templateWMPrio
     templatesmall = ants.resample_image( template, mybig, use_voxels=True )
     qaff = ants.registration(
         ants.rank_intensity(x),
-        ants.rank_intensity(templatesmall), 'SyN',
+        ants.rank_intensity(templatesmall), 'antsRegistrationSyNQuickRepro[s]',
         syn_sampling=2,
         syn_metric='CC',
-        reg_iterations = [25,15,0,0],
+        reg_iterations = [25,15,0,0],total_sigma=0.5,
         aff_metric='GC', random_seed=1 )
     afftx = qaff['fwdtransforms'][1]
     templateWMPrior2x = ants.apply_transforms( x, templateWMPrior, qaff['fwdtransforms'] )
@@ -1857,7 +1934,7 @@ def deep_nbm( t1,
                 refimgsmall,
                 imgrsmall,
                 'antsRegistrationSyNQuickRepro[s]',
-                reg_iterations = [200,200,20],
+                reg_iterations = [200,200,20],total_sigma=0.5,
                 verbose=False )
         else:
             myref = ants.reflect_image( imgrsmall, axis=0, tx='Translation' )
@@ -1866,6 +1943,7 @@ def deep_nbm( t1,
                 imgrsmall,
                 'antsRegistrationSyNQuickRepro[s]',
                 reg_iterations = [200,200,20],
+                total_sigma=0.5,
                 initial_transform = myref['fwdtransforms'][0],
                 verbose=False )
         if not returndef:
@@ -2045,7 +2123,7 @@ def deep_nbm_old( t1, ch13_weights, nbm_weights, registration=True,
         nbmtemplate = ants.image_read(get_data("nbm_template", target_extension=".nii.gz"))
         orireg = ants.registration( fixed = nbmtemplate,
             moving = t1use,
-            type_of_transform="antsRegistrationSyNQuickRepro[a]", verbose=False )
+            type_of_transform="antsRegistrationSyNQuickRepro[a]", total_sigma=0.5,verbose=False )
         t1use = orireg['warpedmovout']
 
     template = ants.image_read(get_data("CIT168_T1w_700um_pad_adni", target_extension=".nii.gz"))
@@ -2053,7 +2131,7 @@ def deep_nbm_old( t1, ch13_weights, nbm_weights, registration=True,
     registrationsyn = ants.registration(
         fixed=templateSmall,
         moving=ants.iMath(t1use,"Normalize"),
-        type_of_transform="antsRegistrationSyNQuickRepro[s]", verbose=False )
+        type_of_transform="antsRegistrationSyNQuickRepro[s]", total_sigma=0.5, verbose=False )
 
     if verbose:
         print( registrationsyn['fwdtransforms'] )
@@ -2074,7 +2152,7 @@ def deep_nbm_old( t1, ch13_weights, nbm_weights, registration=True,
         masker = ants.threshold_image(image, np.quantile(image[image>1e-4], csfquantile ), 1e9 )
     else:
         masker = ants.apply_transforms( image, binary_mask,
-            orireg['fwdtransforms'], interpolator='genericLabel' )
+            orireg['fwdtransforms'], interpolator='nearestNeighbor' )
 
     ch13point = ants.get_center_of_mass( priorL1tosub + priorR1tosub )
 
@@ -2286,19 +2364,19 @@ def deep_cit168( t1, binary_mask = None,
     orireg = ants.registration(
                     fixed = templateSmall,
                     moving = ants.iMath( t1, "Normalize" ),
-                    type_of_transform=syn_type, verbose=False )
+                    type_of_transform=syn_type, total_sigma=0.5, verbose=False )
     image = ants.apply_transforms( nbmtemplate, ants.iMath( t1, "Normalize" ),
         orireg['fwdtransforms'][1] )
     image = ants.iMath( image, "TruncateIntensity",0.001,0.999).iMath("Normalize")
     patchSize = [ 160,160,112 ]
     if priors is None:
         priortosub = ants.apply_transforms( image, myprior,
-            orireg['invtransforms'][1], interpolator='genericLabel' )
+            orireg['invtransforms'][1], interpolator='nearestNeighbor' )
     else:
         if verbose:
             print("using priors")
         priortosub = ants.apply_transforms( image, priors,
-            orireg['fwdtransforms'][1], interpolator='genericLabel' )
+            orireg['fwdtransforms'][1], interpolator='nearestNeighbor' )
     bmask = ants.threshold_image( priortosub, 1, 999 )
     # this identifies the cropping location - assumes a good registration
     pt = list( ants.get_center_of_mass( bmask ) )
@@ -2438,7 +2516,7 @@ def preprocess_intensity( x, brain_extraction,
     -------
     processed image
     """
-    brain_extraction = ants.resample_image_to_target( brain_extraction, x, interp_type='genericLabel' )
+    brain_extraction = ants.resample_image_to_target( brain_extraction, x, interp_type='nearestNeighbor' )
     img = x * brain_extraction
     img = ants.iMath( img, "TruncateIntensity", intensity_truncation_quantiles[0], intensity_truncation_quantiles[1] ).iMath( "Normalize" )
     img = ants.denoise_image( img, brain_extraction, noise_model='Gaussian')
@@ -2591,9 +2669,11 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
     if verbose:
         print("registration")
 
+    myicv = icv( x )
 
     if is_test:
         mydataframes = {
+                "icv": myicv,
                 "rbp": myqc['brain'],
                 "tissues":tissue,
                 "dktlobes":dktl,
@@ -2633,9 +2713,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         ##### how to use the hemi-reg output to generate any roi value from a template roi
         wm_tracts = ants.image_read( get_data( "wm_major_tracts", target_extension='.nii.gz' ) )
         wm_tractsL = ants.apply_transforms( img, wm_tracts, reg['synL']['invtransforms'],
-          interpolator='genericLabel' ) * ants.threshold_image( mylr, 1, 1  )
+          interpolator='nearestNeighbor' ) * ants.threshold_image( mylr, 1, 1  )
         wm_tractsR = ants.apply_transforms( img, wm_tracts, reg['synR']['invtransforms'],
-          interpolator='genericLabel' ) * ants.threshold_image( mylr, 2, 2  )
+          interpolator='nearestNeighbor' ) * ants.threshold_image( mylr, 2, 2  )
         wmtdfL = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsL )
         wmtdfR = map_segmentation_to_dataframe( "wm_major_tracts", wm_tractsR )
 
@@ -2665,7 +2745,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
             total_sigma=0.1,
             is_test=not cit168 )['synL']
         cit168lab = ants.apply_transforms( img, cit168labT,
-                    cit168reg['invtransforms'], interpolator = 'genericLabel' )
+                    cit168reg['invtransforms'], interpolator = 'nearestNeighbor' )
         cit168lab_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', cit168lab ).dropna(axis=0)
 
     if verbose:
@@ -2709,13 +2789,13 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         tbinseg = ants.mask_image( cit168labT, cit168labT, [7,9,23,25,33,34], binarize=True)
         tbinseg = ants.morphology( tbinseg, "dilate", 14 )
         ibinseg = ants.apply_transforms( img, tbinseg, cit168reg['invtransforms'],
-            interpolator='genericLabel')
+            interpolator='nearestNeighbor')
         snreg = region_reg( img, myparc['tissue_segmentation'], ibinseg,
             cit168adni, tbinseg, output_prefix=output_prefix + "_SNREG",
             padding = 4, is_test=False )['synL']
         tbinseg = ants.mask_image( cit168labT, cit168labT, [7,9,23,25,33,34], binarize=False)
         snseg = ants.apply_transforms( img, tbinseg,
-            snreg['invtransforms'], interpolator = 'genericLabel' )
+            snreg['invtransforms'], interpolator = 'nearestNeighbor' )
         snseg = snseg * ants.threshold_image( myparc['tissue_segmentation'], 2, 6 )
         snseg_desc = map_segmentation_to_dataframe( 'CIT168_Reinf_Learn_v1_label_descriptions_pad', snseg ).dropna(axis=0)
     else :
@@ -2726,7 +2806,7 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
         print( "brainstem and cerebellar segmentation" )
     # midbrain/brainstem
     brainstemseg = ants.apply_transforms( img, cit168labStem,
-                cit168reg['invtransforms'], interpolator = 'genericLabel' )
+                cit168reg['invtransforms'], interpolator = 'nearestNeighbor' )
     brainstemseg = brainstemseg * braintissuemask
     brainstem_desc = map_segmentation_to_dataframe( 'CIT168_T1w_700um_pad_adni_brainstem', brainstemseg )
     brainstem_desc = brainstem_desc.loc[:, ~brainstem_desc.columns.str.contains('^Side')]
@@ -2741,9 +2821,9 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
 
     if verbose:
         print( "antspyt1w.hierarchical complete" )
-
     mydataframes = {
         "rbp": myqc['brain'],
+        "icv": myicv,
         "hemispheres":hemi,
         "tissues":tissue,
         "dktlobes":dktl,
@@ -2868,6 +2948,7 @@ def zoom_syn( target_image, template, template_segmentations,
     croplow = ants.crop_image( target_image,  cropper )
     synnerlow = ants.registration( croplow, templatecrop,
         'SyNOnly', gradStep = 0.20, regIterations = regIterations, randomSeed=1,
+        syn_metric='cc', syn_sampling=2, total_sigma=0.5,
         initialTransform = initial_registration['fwdtransforms'] )
     orlist = []
     for jj in range(len(template_segmentations)):
@@ -2881,9 +2962,6 @@ def zoom_syn( target_image, template, template_segmentations,
           'croppedimage': croplow,
           'croppingmask': cropper
           }
-
-
-
 
 
 def read_hierarchical( output_prefix ):
@@ -3054,6 +3132,13 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
     if identifier is None:
         identifier='A'
     wide_df = pd.DataFrame( )
+    icvkey='icv'
+    if icvkey in hierarchical_dataframes.keys():
+        temp = hierarchical_dataframes[icvkey].copy()
+        temp = temp.loc[:, ~temp.columns.str.contains('^Unnamed')]
+        temp.insert(loc=0, column=identifier_name, value=identifier)
+        temp = temp.set_index(identifier_name)
+        wide_df = wide_df.join(temp,how='outer')
     for myvar in hierarchical_dataframes.keys():
         if verbose:
             print( myvar )
@@ -3095,8 +3180,6 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
                 jdfsub.columns=jdfsub.columns+myvar
                 jdfsub = jdfsub.rename(mapper=lambda x: x.strip().replace(' ', '_').lower(), axis=1)
                 wide_df = wide_df.join(jdfsub,how='outer')
-
-    # handle RBP
     rbpkey='rbp'
     if rbpkey in hierarchical_dataframes.keys():
         temp = hierarchical_dataframes[rbpkey].copy()
@@ -3104,7 +3187,6 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
         temp.insert(loc=0, column=identifier_name, value=identifier)
         temp = temp.set_index(identifier_name)
         wide_df = wide_df.join(temp,how='outer')
-
     # handle wmh
     wmhkey='wmh'
     if wmhkey in hierarchical_dataframes.keys():
@@ -3118,19 +3200,9 @@ def merge_hierarchical_csvs_to_wide_format( hierarchical_dataframes, col_names =
         wmhval = df.loc[ df.Description == 'Log_Evidence','Value']
         wide_df.insert(loc = 0, column = 'wmh_log_evidence', value =wmhval )
         wide_df['wmh_log_evidence']=wmhval
-
     wide_df.insert(loc = 0, column = identifier_name, value = identifier)
-
     return wide_df
 
-    # Example
-    # -------
-    # >>> import ants
-    # >>> intensity_image = ants.image_read(antspyt1w.get_data('nbm_template', target_extension = '.nii.gz'))
-    # >>> segmentation_image = ants.image_read(antspyt1w.get_data('nbm_template_seg', target_extension = '.nii.gz'))
-    # >>> df = antspyt1w.map_intensity_to_dataframe('nbm3CH13', intensity_image, segmentation_image)
-    # >>> df = {'dataframes' : df}
-    # >>> df_bfwide = merge_hierarchical_csvs_to_wide_format(df, col_names = ['Mean'], identifier=None, identifier_name='u_hier_id')
 
 
 
@@ -3323,7 +3395,7 @@ def super_resolution_segmentation_per_label(
         tarmask = ants.threshold_image( segmentationUse, 1, segmentationUse.max() )
     else:
         tarmask = ants.threshold_image( segmentationUse, 1, segmentationUse.max() ).iMath("MD",1)
-    tarmask = ants.resample_image_to_target( tarmask, imgsrfull2, interp_type='genericLabel' )
+    tarmask = ants.resample_image_to_target( tarmask, imgsrfull2, interp_type='nearestNeighbor' )
 
 
     if True: # we dont generally know which of these is background/foreground so .....
