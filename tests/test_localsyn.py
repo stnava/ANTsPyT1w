@@ -12,7 +12,7 @@ its=[40,0,0,0]
 # reproducibility
 #
 # region_reg(input_image, input_image_tissue_segmentation, input_image_region_segmentation, input_template, input_template_region_segmentation, output_prefix, padding=10, labels_to_register=[2, 3, 4, 5], total_sigma=0.5, is_test=False)
-lsyn0=antspyt1w.region_reg(img, msk, msk, img2, msk2,  padding=8,  output_prefix='/tmp/BB', labels_to_register=[1], total_sigma=0.5, is_test=True )
-lsyn1=antspyt1w.region_reg(img, msk, msk, img2, msk2,  padding=8,  output_prefix='/tmp/CC', labels_to_register=[1], total_sigma=0.5, is_test=True )
+lsyn0=antspyt1w.region_reg(img, msk, msk, img2, msk2,  padding=8,  output_prefix='/tmp/BB', total_sigma=0.5, is_test=True )
+lsyn1=antspyt1w.region_reg(img, msk, msk, img2, msk2,  padding=8,  output_prefix='/tmp/CC', total_sigma=0.5, is_test=True )
 # lsyn0=antspyt1w.localsyn(img, img2, msk, msk2, whichHemi=1, padder=0, iterations=its, output_prefix='/tmp/BB', total_sigma=0.5)
 # lsyn1=antspyt1w.localsyn(img, img2, msk, msk2, whichHemi=1, padder=0, iterations=its, output_prefix='/tmp/CC', total_sigma=0.5)
