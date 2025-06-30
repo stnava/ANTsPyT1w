@@ -1738,7 +1738,6 @@ def region_reg(
     input_template_region_segmentation,
     output_prefix,
     padding=10,
-    labels_to_register = [2,3,4,5],
     total_sigma=0.5,
     is_test=False ):
     """
@@ -1753,16 +1752,13 @@ def region_reg(
     input_image_region_segmentation: a local region to register - binary.
 
     input_template: template to which we register; prefer a population-specific
-    relatively high-resolution template instead of MNI or biobank.
+    relatively high-resolution template instead of MNI or biobank. brain extracted.
 
     input_template_region_segmentation: a segmentation image of template regions - binary.
 
     output_prefix: a path and prefix for registration related outputs
 
     padding: number of voxels to pad images, needed for diffzero
-
-    labels_to_register: list of integer segmentation labels to use to define
-    the tissue types / regions of the brain to register.
 
     total_sigma: scalar >= 0.0 ; higher means more constrained registration.
 
@@ -1773,20 +1769,13 @@ def region_reg(
 
     img = ants.rank_intensity( input_image )
     ionlycerebrum = brain_extraction( input_image )
-
-    tonlycerebrum = brain_extraction( input_template )
     template = ants.rank_intensity( input_template )
-
     regsegits=[200,200,20]
 
     # upsample the template if we are passing SR as input
     if min(ants.get_spacing(img)) < 0.8:
         regsegits=[200,200,200,20]
         template = ants.resample_image( template, (0.5,0.5,0.5), interp_type = 0 )
-        tonlycerebrum = ants.resample_image_to_target( tonlycerebrum,
-            template,
-            interp_type='nearestNeighbor',
-        )
 
     if is_test:
         regsegits=[20,5,0]
@@ -1800,7 +1789,7 @@ def region_reg(
     # now do a region focused registration
     synL = localsyn(
         img=img*ionlycerebrum,
-        template=template*tonlycerebrum,
+        template=template,
         hemiS=input_image_region_segmentation,
         templateHemi=input_template_region_segmentation,
         whichHemi=1,
@@ -1827,7 +1816,7 @@ def region_reg(
         "synLpng":fignameL,
         "lhjac":lhjac,
         'rankimg':img*ionlycerebrum,
-        'template':template*tonlycerebrum
+        'template':template
         }
 
 
@@ -2739,7 +2728,6 @@ def hierarchical( x, output_prefix, labels_to_register=[2,3,4,5],
             input_template_region_segmentation=ants.threshold_image( cit168adni, 0.15, 1 ),
             output_prefix=output_prefix + "_CIT168RRSYN",
             padding=10,
-            labels_to_register = [1,2,3,4,5,6],
             total_sigma=0.5,
             is_test=not cit168 )['synL']
     cit168lab = ants.apply_transforms( img, cit168labT,
